@@ -103,7 +103,7 @@ class Reporting(object):
             
             for var in self.outSubdailyTotNC:
                 if var not in routingVariables:
-                    raise ValueError("Variable %s is not supported for subdaily reporting, only %s are supported.", str(var), str(*routingVariables))
+                    logger.error("Variable %s is not supported for subdaily reporting.", str(var))
                 
                 logger.info("Creating the netcdf file for sub-daily reporting for variable %s.", str(var))
 
@@ -1093,7 +1093,7 @@ class Reporting(object):
                                                 str(var)+\
                                                 "_subdailyTot_output.nc",\
                                                 short_name,\
-                    pcr.pcr2numpy(self.__getattribute__(var),vos.MV),\
+                    pcr.pcr2numpy(self.__getattribute__(var)[i],vos.MV),\
                                                 subTimeStamp)
                 
         # writing daily output to netcdf files
