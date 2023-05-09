@@ -91,6 +91,36 @@ class Reporting(object):
 
         # initiating netcdf files for reporting
         #
+        # - subdaily output in netCDF files:
+        self.outSubdailyTotNC = ["None"]
+        try:
+            self.outSubdailyTotNC = list(set(self.configuration.reportingOptions['outSubdailyTotNC'].split(",")))
+        except:
+            pass
+        #
+        if self.outSubdailyTotNC[0] != "None":
+            routingVariables = ["subDischarge", "subSurfaceWaterStorage"]
+            
+            for var in self.outSubdailyTotNC:
+                if var not in routingVariables:
+                    raise ValueError("Variable %s is not supported for subdaily reporting, only %s are supported.", str(var), str(*routingVariables))
+                
+                logger.info("Creating the netcdf file for sub-daily reporting for variable %s.", str(var))
+
+                short_name = varDicts.netcdf_short_name[var]
+                unit       = varDicts.netcdf_unit[var]      
+                long_name  = varDicts.netcdf_long_name[var]
+                if long_name == None: long_name = short_name
+                standard_name= short_name
+                if var in list(varDicts.netcdf_standard_name.keys()):
+                    standard_name= varDicts.netcdf_standard_name[var]
+                
+                # creating netCDF files:
+                self.netcdfObj.createNetCDF(self.outNCDir+"/"+ \
+                                            str(var)+\
+                                            "_subdailyTot_output.nc",\
+                                            short_name,unit,long_name,standard_name)
+        #
         # - daily output in netCDF files:
         self.outDailyTotNC = ["None"]
         try:
@@ -700,6 +730,9 @@ class Reporting(object):
         
         # discharge (unit: m3/s)
         self.discharge = self._model.routing.disChanWaterBody
+        
+        # subDischarge (unit: m3/s)
+        self.subDischarge = self._model.routing.subDischargeList
 
         # soil moisture state from (approximately) the first 5 cm soil  
         if self._model.landSurface.numberOfSoilLayers == 3:
@@ -791,6 +824,9 @@ class Reporting(object):
         
         # surfaceWaterStorage (unit: m) - negative values may be reported
         self.surfaceWaterStorage = self._model.routing.channelStorage / self._model.routing.cellArea
+        
+        # subSurfaceWaterStorage (unit: m) - negative values may be reported
+        self.subSurfaceWaterStorage = [channelStorage / self._model.routing.cellArea for channelStorage in self._model.routing.channelStorageList]
 
         # estimate of river/surface water levels (above channel/surface water bottom elevation)
         self.surfaceWaterLevel = pcr.ifthenelse(self.dynamicFracWat > 0., self._model.routing.channelStorage / \
@@ -1037,6 +1073,29 @@ class Reporting(object):
 
         logger.info("reporting for time %s", self._modelTime.currTime)
 
+        # writing sub-daily output to netcdf files
+        if self.outSubdailyTotNC[0] != "None":
+            for var in self.outSubdailyTotNC:
+                
+                nsteps = len(vars(self)[var])
+                for i in range(nsteps):
+                    
+                    subTimeStamp = timeStamp + datetime.timedelta(seconds=86400 / nsteps) * i
+                    
+                    # masking out for reporting
+                    if self.landmask_for_reporting is not None:
+                        vars(self)[var][i] = pcr.ifthen(self.landmask_for_reporting, \
+                                                    vars(self)[var][i])
+
+                    short_name = varDicts.netcdf_short_name[var]
+                    
+                    self.netcdfObj.data2NetCDF(self.outNCDir+"/"+ \
+                                                str(var)+\
+                                                "_subdailyTot_output.nc",\
+                                                short_name,\
+                    pcr.pcr2numpy(self.__getattribute__(var),vos.MV),\
+                                                subTimeStamp)
+                
         # writing daily output to netcdf files
         if self.outDailyTotNC[0] != "None":
             for var in self.outDailyTotNC:

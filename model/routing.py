@@ -1965,6 +1965,8 @@ class Routing(object):
         # estimate the length of sub-time step (unit: s):
         length_of_sub_time_step, number_of_loops = self.estimate_length_of_sub_time_step()
 
+        self.subDischargeList = []
+        self.channelStorageList = []
 
         #######################################################################################################################
         for i_loop in range(number_of_loops):
@@ -2139,6 +2141,9 @@ class Routing(object):
             # estimate water_height
             # - this water height includes the one for lake and reservoirs
             self.water_height = pcr.max(0.0, channelStorageForRouting) / (pcr.max(self.min_fracwat_for_water_height, self.dynamicFracWat) * self.cellArea)
+            
+            self.subDischargeList.append(self.subDischarge)
+            self.channelStorageList.append(channelStorageForRouting)
             
         #######################################################################################################################
         

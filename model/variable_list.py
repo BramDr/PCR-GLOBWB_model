@@ -805,6 +805,17 @@ description[pcrglobwb_variable_name]       = None
 comment[pcrglobwb_variable_name]           = None
 latex_symbol[pcrglobwb_variable_name]      = None
 
+# subDischarge
+pcrglobwb_variable_name = 'subDischarge'
+netcdf_short_name[pcrglobwb_variable_name] = 'sub_discharge'
+netcdf_unit[pcrglobwb_variable_name]       = 'm3.s-1'
+netcdf_monthly_total_unit[pcrglobwb_variable_name] = None 
+netcdf_yearly_total_unit[pcrglobwb_variable_name]  = None
+netcdf_long_name[pcrglobwb_variable_name]  = None
+description[pcrglobwb_variable_name]       = None
+comment[pcrglobwb_variable_name]           = None
+latex_symbol[pcrglobwb_variable_name]      = None
+
 # totalRunoff
 pcrglobwb_variable_name = 'totalRunoff'
 netcdf_short_name[pcrglobwb_variable_name] = 'total_runoff'
@@ -885,6 +896,17 @@ latex_symbol[pcrglobwb_variable_name]      = None
 # surfaceWaterStorage
 pcrglobwb_variable_name = 'surfaceWaterStorage'
 netcdf_short_name[pcrglobwb_variable_name] = 'surface_water_storage'
+netcdf_unit[pcrglobwb_variable_name]       = 'm'
+netcdf_monthly_total_unit[pcrglobwb_variable_name] = None 
+netcdf_yearly_total_unit[pcrglobwb_variable_name]  = None
+netcdf_long_name[pcrglobwb_variable_name]  = None
+description[pcrglobwb_variable_name]       = None
+comment[pcrglobwb_variable_name]           = 'Negative values may be reported, due to excessive demands.'
+latex_symbol[pcrglobwb_variable_name]      = None
+
+# subSurfaceWaterStorage
+pcrglobwb_variable_name = 'subSurfaceWaterStorage'
+netcdf_short_name[pcrglobwb_variable_name] = 'sub_surface_water_storage'
 netcdf_unit[pcrglobwb_variable_name]       = 'm'
 netcdf_monthly_total_unit[pcrglobwb_variable_name] = None 
 netcdf_yearly_total_unit[pcrglobwb_variable_name]  = None
