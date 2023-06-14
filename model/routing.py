@@ -1965,8 +1965,9 @@ class Routing(object):
         # estimate the length of sub-time step (unit: s):
         length_of_sub_time_step, number_of_loops = self.estimate_length_of_sub_time_step()
 
-        self.subDischargeList = []
-        self.channelStorageList = []
+        self.discharge_substeps = []
+        self.channelStorage_substeps = []
+        self.waterBodyEvaporation_substeps = []
 
         #######################################################################################################################
         for i_loop in range(number_of_loops):
@@ -2142,13 +2143,14 @@ class Routing(object):
             # - this water height includes the one for lake and reservoirs
             self.water_height = pcr.max(0.0, channelStorageForRouting) / (pcr.max(self.min_fracwat_for_water_height, self.dynamicFracWat) * self.cellArea)
             
-            self.subDischargeList.append(self.subDischarge)
-            self.channelStorageList.append(channelStorageForRouting)
+            self.discharge_substeps.append(self.subDischarge)
+            self.channelStorage_substeps.append(channelStorageForRouting)
+            self.waterBodyEvaporation_substeps.append(water_body_evaporation_volume / self.cellArea)
             
         #######################################################################################################################
         
         # evaporation (m/day)
-        self.waterBodyEvaporation = water_body_evaporation_volume / self.cellArea
+        self.waterBodyEvaporation = acc_water_body_evaporation_volume / self.cellArea
         
         # local input to surface water (m3)
         self.local_input_to_surface_water += acc_local_input_to_surface_water

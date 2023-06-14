@@ -99,7 +99,7 @@ class Reporting(object):
             pass
         #
         if self.outSubdailyTotNC[0] != "None":
-            routingVariables = ["subDischarge", "subSurfaceWaterStorage"]
+            routingVariables = ["subDischarge", "subSurfaceWaterStorage", "subChannelStorage", "subWaterBodyActEvaporation"]
             
             for var in self.outSubdailyTotNC:
                 if var not in routingVariables:
@@ -732,7 +732,7 @@ class Reporting(object):
         self.discharge = self._model.routing.disChanWaterBody
         
         # subDischarge (unit: m3/s)
-        self.subDischarge = self._model.routing.subDischargeList
+        self.subDischarge = self._model.routing.subDischarge_substeps
 
         # soil moisture state from (approximately) the first 5 cm soil  
         if self._model.landSurface.numberOfSoilLayers == 3:
@@ -782,6 +782,8 @@ class Reporting(object):
         # water body evaporation (m) - from surface water fractions only
         self.waterBodyActEvaporation = self._model.routing.waterBodyEvaporation
         self.waterBodyPotEvaporation = self._model.routing.waterBodyPotEvap
+        
+        self.subWaterBodyActEvaporation = self._model.routing.waterBodyEvaporation_substeps
         #
         self.fractionWaterBodyEvaporation = vos.getValDivZero(self.waterBodyActEvaporation,\
                                                               self.waterBodyPotEvaporation,\
@@ -826,7 +828,7 @@ class Reporting(object):
         self.surfaceWaterStorage = self._model.routing.channelStorage / self._model.routing.cellArea
         
         # subSurfaceWaterStorage (unit: m) - negative values may be reported
-        self.subSurfaceWaterStorage = [channelStorage / self._model.routing.cellArea for channelStorage in self._model.routing.channelStorageList]
+        self.subSurfaceWaterStorage = [channelStorage / self._model.routing.cellArea for channelStorage in self._model.routing.channelStorage_substeps]
 
         # estimate of river/surface water levels (above channel/surface water bottom elevation)
         self.surfaceWaterLevel = pcr.ifthenelse(self.dynamicFracWat > 0., self._model.routing.channelStorage / \
@@ -871,6 +873,7 @@ class Reporting(object):
         self.channelStorage = pcr.ifthen(self._model.routing.landmask, \
                               pcr.cover(self._model.routing.channelStorage, 0.0)) 
         
+        self.subChannelStorage = self._model.routing.channelStorage_substeps
         
         # Some examples to report variables from certain land cover types:
         # - unit: m/day - values are average over the entire cell area

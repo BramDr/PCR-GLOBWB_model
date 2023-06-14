@@ -705,6 +705,17 @@ description[pcrglobwb_variable_name]       = None
 comment[pcrglobwb_variable_name]           = 'Flux values given are over the entire cell area (not only over surface water body fraction).'
 latex_symbol[pcrglobwb_variable_name]      = None
 
+# subWaterBodyActEvaporation
+pcrglobwb_variable_name = 'subWaterBodyActEvaporation'
+netcdf_short_name[pcrglobwb_variable_name] = 'sub_water_body_actual_evaporation'
+netcdf_unit[pcrglobwb_variable_name]       = 'm.substep-1'
+netcdf_monthly_total_unit[pcrglobwb_variable_name] = None
+netcdf_yearly_total_unit[pcrglobwb_variable_name]  = None
+netcdf_long_name[pcrglobwb_variable_name]  = None
+description[pcrglobwb_variable_name]       = None
+comment[pcrglobwb_variable_name]           = 'Flux values given are over the entire cell area (not only over surface water body fraction).'
+latex_symbol[pcrglobwb_variable_name]      = None
+
 # waterBodyPotEvaporation
 pcrglobwb_variable_name = 'waterBodyPotEvaporation'
 netcdf_short_name[pcrglobwb_variable_name] = 'water_body_potential_evaporation'
