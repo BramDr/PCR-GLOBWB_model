@@ -732,7 +732,7 @@ class Reporting(object):
         self.discharge = self._model.routing.disChanWaterBody
         
         # subDischarge (unit: m3/s)
-        self.subDischarge = self._model.routing.subDischarge_substeps
+        self.subDischarge = self._model.routing.discharge_substepsG
 
         # soil moisture state from (approximately) the first 5 cm soil  
         if self._model.landSurface.numberOfSoilLayers == 3:
