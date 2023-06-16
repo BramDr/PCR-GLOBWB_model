@@ -1968,6 +1968,7 @@ class Routing(object):
         self.discharge_substeps = []
         self.channelStorage_substeps = []
         self.waterBodyEvaporation_substeps = []
+        self.waterBodyStorage_substeps = []
 
         #######################################################################################################################
         for i_loop in range(number_of_loops):
@@ -2146,6 +2147,7 @@ class Routing(object):
             self.discharge_substeps.append(self.subDischarge)
             self.channelStorage_substeps.append(channelStorageForRouting)
             self.waterBodyEvaporation_substeps.append(water_body_evaporation_volume / self.cellArea)
+            self.waterBodyStorage_substeps.append(self.waterBodyStorage)
             
         #######################################################################################################################
         

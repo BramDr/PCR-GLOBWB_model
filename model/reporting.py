@@ -99,7 +99,7 @@ class Reporting(object):
             pass
         #
         if self.outSubdailyTotNC[0] != "None":
-            routingVariables = ["subDischarge", "subSurfaceWaterStorage", "subChannelStorage", "subWaterBodyActEvaporation"]
+            routingVariables = ["subDischarge", "subSurfaceWaterStorage", "subChannelStorage", "subWaterBodyActEvaporation", "subWaterBodyStorage"]
             
             for var in self.outSubdailyTotNC:
                 if var not in routingVariables:
@@ -866,6 +866,9 @@ class Reporting(object):
                                 pcr.ifthen(\
                                 pcr.scalar(self._model.routing.WaterBodies.waterBodyIds) > 0.,\
                                            self._model.routing.WaterBodies.waterBodyStorage), 0.0))     # Note: This value is after lake/reservoir outflow.
+        
+        self.subWwaterBodyStorage = self._model.routing.waterBodyStorage_substeps
+        
         # - snowMelt (m)
         self.snowMelt = self._model.landSurface.snowMelt
 
