@@ -867,7 +867,7 @@ class Reporting(object):
                                 pcr.scalar(self._model.routing.WaterBodies.waterBodyIds) > 0.,\
                                            self._model.routing.WaterBodies.waterBodyStorage), 0.0))     # Note: This value is after lake/reservoir outflow.
         
-        self.subWwaterBodyStorage = self._model.routing.waterBodyStorage_substeps
+        self.subWaterBodyStorage = self._model.routing.waterBodyStorage_substeps
         
         # - snowMelt (m)
         self.snowMelt = self._model.landSurface.snowMelt
