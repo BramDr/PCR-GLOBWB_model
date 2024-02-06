@@ -665,6 +665,10 @@ class Reporting(object):
         self.nonIrrGrossDemand    = self._model.landSurface.nonIrrGrossDemand
         self.totalGrossDemand     = self._model.landSurface.totalPotentialGrossDemand
         
+        self.irrPotentialMaximumGrossDemand       = self._model.landSurface.irrPotentialMaximumGrossDemand    
+        self.nonIrrPotentialMaximumGrossDemand    = self._model.landSurface.nonIrrPotentialMaximumGrossDemand
+        self.totalPotentialMaximumGrossDemand     = self._model.landSurface.totalPotentialMaximumGrossDemand
+        
         self.satDegUpp            = self._model.landSurface.satDegUppTotal
         self.satDegLow            = self._model.landSurface.satDegLowTotal
 

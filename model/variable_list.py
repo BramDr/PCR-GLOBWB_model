@@ -462,6 +462,72 @@ description[pcrglobwb_variable_name]       = None
 comment[pcrglobwb_variable_name]           = None
 latex_symbol[pcrglobwb_variable_name]      = None
 
+# irrPotentialMaximumGrossDemand                  
+pcrglobwb_variable_name = 'irrPotentialMaximumGrossDemand'
+netcdf_short_name[pcrglobwb_variable_name] = 'irrigation_potential_maximum_gross_demand'
+netcdf_unit[pcrglobwb_variable_name]       = 'm.day-1'
+netcdf_monthly_total_unit[pcrglobwb_variable_name] = 'm.month-1' 
+netcdf_yearly_total_unit[pcrglobwb_variable_name]  = 'm.year-1'
+netcdf_long_name[pcrglobwb_variable_name]  = None
+description[pcrglobwb_variable_name]       = None
+comment[pcrglobwb_variable_name]           = "not including water consumption for livestock"
+latex_symbol[pcrglobwb_variable_name]      = None
+
+# irrPotentialMaximumGrossDemandVolume                  
+pcrglobwb_variable_name = 'irrPotentialMaximumGrossDemandVolume'
+netcdf_short_name[pcrglobwb_variable_name] = 'irrigation_potential_maximum_gross_demand_volume'
+netcdf_unit[pcrglobwb_variable_name]       = 'm3.day-1'
+netcdf_monthly_total_unit[pcrglobwb_variable_name] = 'm3.month-1' 
+netcdf_yearly_total_unit[pcrglobwb_variable_name]  = 'm3.year-1'
+netcdf_long_name[pcrglobwb_variable_name]  = None
+description[pcrglobwb_variable_name]       = None
+comment[pcrglobwb_variable_name]           = "not including water consumption for livestock"
+latex_symbol[pcrglobwb_variable_name]      = None
+
+# nonIrrPotentialMaximumGrossDemand                  
+pcrglobwb_variable_name = 'nonIrrPotentialMaximumGrossDemand'
+netcdf_short_name[pcrglobwb_variable_name] = 'non_irrigation_potential_maximum_gross_demand'
+netcdf_unit[pcrglobwb_variable_name]       = 'm.day-1'
+netcdf_monthly_total_unit[pcrglobwb_variable_name] = 'm.month-1' 
+netcdf_yearly_total_unit[pcrglobwb_variable_name]  = 'm.year-1'
+netcdf_long_name[pcrglobwb_variable_name]  = None
+description[pcrglobwb_variable_name]       = None
+comment[pcrglobwb_variable_name]           = None
+latex_symbol[pcrglobwb_variable_name]      = None
+
+# nonIrrPotentialMaximumGrossDemandVolume                  
+pcrglobwb_variable_name = 'nonIrrPotentialMaximumGrossDemandVolume'
+netcdf_short_name[pcrglobwb_variable_name] = 'non_irrigation_potential_maximum_gross_demand_volume'
+netcdf_unit[pcrglobwb_variable_name]       = 'm3.day-1'
+netcdf_monthly_total_unit[pcrglobwb_variable_name] = 'm3.month-1' 
+netcdf_yearly_total_unit[pcrglobwb_variable_name]  = 'm3.year-1'
+netcdf_long_name[pcrglobwb_variable_name]  = None
+description[pcrglobwb_variable_name]       = None
+comment[pcrglobwb_variable_name]           = None
+latex_symbol[pcrglobwb_variable_name]      = None
+
+# totalPotentialMaximumGrossDemand                  
+pcrglobwb_variable_name = 'totalPotentialMaximumGrossDemand'
+netcdf_short_name[pcrglobwb_variable_name] = 'potential_maximum_total_gross_demand'
+netcdf_unit[pcrglobwb_variable_name]       = 'm.day-1'
+netcdf_monthly_total_unit[pcrglobwb_variable_name] = 'm.month-1' 
+netcdf_yearly_total_unit[pcrglobwb_variable_name]  = 'm.year-1'
+netcdf_long_name[pcrglobwb_variable_name]  = None
+description[pcrglobwb_variable_name]       = None
+comment[pcrglobwb_variable_name]           = None
+latex_symbol[pcrglobwb_variable_name]      = None
+
+# totalPotentialMaximumGrossDemandVolume                  
+pcrglobwb_variable_name = 'totalPotentialMaximumGrossDemandVolume'
+netcdf_short_name[pcrglobwb_variable_name] = 'potential_maximum_total_gross_demand_volume'
+netcdf_unit[pcrglobwb_variable_name]       = 'm3.day-1'
+netcdf_monthly_total_unit[pcrglobwb_variable_name] = 'm3.month-1' 
+netcdf_yearly_total_unit[pcrglobwb_variable_name]  = 'm3.year-1'
+netcdf_long_name[pcrglobwb_variable_name]  = None
+description[pcrglobwb_variable_name]       = None
+comment[pcrglobwb_variable_name]           = None
+latex_symbol[pcrglobwb_variable_name]      = None
+
 # satDegUpp                       
 pcrglobwb_variable_name = 'satDegUpp'
 netcdf_short_name[pcrglobwb_variable_name] = 'upper_soil_saturation_degree'

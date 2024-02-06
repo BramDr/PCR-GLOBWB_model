@@ -1728,9 +1728,9 @@ class LandCover(object):
         # totalGrossDemand (m): irrigation and non irrigation (not limited by available water) - these values will not be reduced
         self.totalPotentialMaximumGrossDemand       = self.irrGrossDemand + self.nonIrrGrossDemand
         # - irrigation (excluding livestock)
-        self.totalPotentialMaximumIrrGrossDemand    = self.irrGrossDemand                         
+        self.irrPotentialMaximumGrossDemand    = self.irrGrossDemand                         
         # - non irrigation (including livestock)
-        self.totalPotentialMaximumNonIrrGrossDemand = self.nonIrrGrossDemand
+        self.nonIrrPotentialMaximumGrossDemand = self.nonIrrGrossDemand
         
         # the following value will be reduced by available/accesible water
         self.totalPotentialGrossDemand           = self.totalPotentialMaximumGrossDemand         
@@ -1778,10 +1778,10 @@ class LandCover(object):
         satisfiedNonIrrDemand     = pcr.max(0.00, self.desalinationAllocation - satisfiedIrrigationDemand)
         # - for domestic
         satisfiedDomesticDemand   = satisfiedNonIrrDemand * vos.getValDivZero(nonIrrGrossDemandDict['potential_demand']['domestic'], 
-                                                                              self.totalPotentialMaximumNonIrrGrossDemand)  
+                                                                              self.nonIrrPotentialMaximumGrossDemand)  
         # - for industry
         satisfiedIndustryDemand   = satisfiedNonIrrDemand * vos.getValDivZero(nonIrrGrossDemandDict['potential_demand']['industry'], 
-                                                                              self.totalPotentialMaximumNonIrrGrossDemand)
+                                                                              self.nonIrrPotentialMaximumGrossDemand)
         # - for livestock                                                                      
         satisfiedLivestockDemand  = pcr.max(0.0, satisfiedNonIrrDemand - satisfiedDomesticDemand - satisfiedIndustryDemand)
 
