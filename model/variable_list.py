@@ -462,8 +462,8 @@ description[pcrglobwb_variable_name]       = None
 comment[pcrglobwb_variable_name]           = None
 latex_symbol[pcrglobwb_variable_name]      = None
 
-# irrPotentialMaximumGrossDemand                  
-pcrglobwb_variable_name = 'irrPotentialMaximumGrossDemand'
+# totalPotentialMaximumIrrGrossDemand                  
+pcrglobwb_variable_name = 'totalPotentialMaximumIrrGrossDemand'
 netcdf_short_name[pcrglobwb_variable_name] = 'irrigation_potential_maximum_gross_demand'
 netcdf_unit[pcrglobwb_variable_name]       = 'm.day-1'
 netcdf_monthly_total_unit[pcrglobwb_variable_name] = 'm.month-1' 
@@ -473,8 +473,8 @@ description[pcrglobwb_variable_name]       = None
 comment[pcrglobwb_variable_name]           = "not including water consumption for livestock"
 latex_symbol[pcrglobwb_variable_name]      = None
 
-# irrPotentialMaximumGrossDemandVolume                  
-pcrglobwb_variable_name = 'irrPotentialMaximumGrossDemandVolume'
+# totalPotentialMaximumIrrGrossDemandVolume                  
+pcrglobwb_variable_name = 'totalPotentialMaximumIrrGrossDemandVolume'
 netcdf_short_name[pcrglobwb_variable_name] = 'irrigation_potential_maximum_gross_demand_volume'
 netcdf_unit[pcrglobwb_variable_name]       = 'm3.day-1'
 netcdf_monthly_total_unit[pcrglobwb_variable_name] = 'm3.month-1' 
@@ -484,8 +484,8 @@ description[pcrglobwb_variable_name]       = None
 comment[pcrglobwb_variable_name]           = "not including water consumption for livestock"
 latex_symbol[pcrglobwb_variable_name]      = None
 
-# nonIrrPotentialMaximumGrossDemand                  
-pcrglobwb_variable_name = 'nonIrrPotentialMaximumGrossDemand'
+# totalPotentialMaximumNonIrrGrossDemand                  
+pcrglobwb_variable_name = 'totalPotentialMaximumNonIrrGrossDemand'
 netcdf_short_name[pcrglobwb_variable_name] = 'non_irrigation_potential_maximum_gross_demand'
 netcdf_unit[pcrglobwb_variable_name]       = 'm.day-1'
 netcdf_monthly_total_unit[pcrglobwb_variable_name] = 'm.month-1' 
@@ -495,8 +495,8 @@ description[pcrglobwb_variable_name]       = None
 comment[pcrglobwb_variable_name]           = None
 latex_symbol[pcrglobwb_variable_name]      = None
 
-# nonIrrPotentialMaximumGrossDemandVolume                  
-pcrglobwb_variable_name = 'nonIrrPotentialMaximumGrossDemandVolume'
+# totalPotentialMaximumNonIrrGrossDemandVolume                  
+pcrglobwb_variable_name = 'totalPotentialMaximumNonIrrGrossDemandVolume'
 netcdf_short_name[pcrglobwb_variable_name] = 'non_irrigation_potential_maximum_gross_demand_volume'
 netcdf_unit[pcrglobwb_variable_name]       = 'm3.day-1'
 netcdf_monthly_total_unit[pcrglobwb_variable_name] = 'm3.month-1' 
