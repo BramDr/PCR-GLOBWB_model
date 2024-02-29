@@ -1,15 +1,14 @@
-name: Black
+name: Code formatting
 
 on: [pull_request]
 
 jobs:
-  autopep8:
-    # Check if the PR is not raised by this workflow and is not from a fork
+  black:
+    # Check if the pull-request is not raised by this workflow
     if: startsWith(github.head_ref, 'black-patches') == false
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout branch
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       - name: Run Black
         id: black
         uses: psf/black@stable
