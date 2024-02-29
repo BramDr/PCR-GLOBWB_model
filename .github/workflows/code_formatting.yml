@@ -15,19 +15,15 @@ jobs:
         with:
           args: "."
         continue-on-error: true
-      - name: Set black-patches branch name
-        id: vars
-        run: |
-          echo "branch-name=black-patches/${{ github.head_ref }}" >> $GITHUB_OUTPUT
       - name: Run Create Pull Request
         if: steps.black.outputs.exit-code > 0
         uses: peter-evans/create-pull-request@v6
         with:
-          commit-message: black fixes
+          commit-message: black patches
           title: Fixes by black
-          body: This is an auto-generated pull-request with fixes by black.
+          body: This is an auto-generated pull-request with patches by black.
           labels: black
-          branch: ${{ steps.vars.outputs.branch-name }}
+          branch: black-patches/${{ github.head_ref }}
       - name: Fail if black made changes
         if: steps.black.outputs.exit-code > 0
         run: exit 1
