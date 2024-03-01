@@ -11,7 +11,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          repository: ${{ github.repository }}
+          repository: ${{ github.head_ref }}
       - name: Show GitHub context
         env:
           GITHUB_CONTEXT: ${{ toJson(github) }}
@@ -24,6 +24,7 @@ jobs:
           echo "$GITHUB_REF"
           echo "$git_hash"
           echo "$git_branch"
+          echo "black-patches/${{ github.head_ref }}"
       - name: Run Black
         id: black
         uses: psf/black@stable
