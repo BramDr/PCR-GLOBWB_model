@@ -37,4 +37,4 @@ jobs:
           git config user.email github-actions@github.com
           git add .
           git commit -m "automatically generated black linting"
-          git push ${{ github.event.pull_request.head.sha }}
+          git push origin HEAD:${{ github.ref }}
