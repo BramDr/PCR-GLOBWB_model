@@ -11,7 +11,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          repository: ${{ github.head_ref }}
+          ref: ${{ github.head_ref }}
       - name: Show GitHub context
         env:
           GITHUB_CONTEXT: ${{ toJson(github) }}
