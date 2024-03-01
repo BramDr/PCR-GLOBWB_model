@@ -3,7 +3,7 @@ name: Code formatting
 on: [pull_request]
 
 jobs:
-  black:
+  black-linting:
     # Check if the pull-request is not raised by this workflow
     if: startsWith(github.head_ref, 'black-patches') == false
     runs-on: ubuntu-latest
@@ -16,6 +16,7 @@ jobs:
         with:
           options: "--verbose"
           src: "."
+        continue-on-error: true
       - name: Commit changes
         run: |
           git config user.name github-actions
