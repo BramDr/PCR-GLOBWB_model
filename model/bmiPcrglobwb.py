@@ -19,35 +19,40 @@ logger = logging.getLogger(__name__)
 
 
 class BmiPCRGlobWB(EBmi):
-    #we use the same epoch as pcrglobwb netcdf reporting
+    # we use the same epoch as pcrglobwb netcdf reporting
     def days_since_industry_epoch(self, modeltime):
         return (modeltime - datetime.date(1901, 1, 1)).days
 
     def in_modeltime(self, days_since_industry_epoch):
-        return (datetime.datetime(1901, 1, 1) + datetime.timedelta(days=days_since_industry_epoch)).date()
+        return (
+            datetime.datetime(1901, 1, 1)
+            + datetime.timedelta(days=days_since_industry_epoch)
+        ).date()
 
     def calculate_shape(self):
         # return pcr.pcr2numpy(self.model.landmask, 1e20).shape
         return (pcr.clone().nrRows(), pcr.clone().nrCols())
 
-    #BMI initialize (as a single step)
+    # BMI initialize (as a single step)
     def initialize(self, fileName):
         self.initialize_config(fileName)
         self.initialize_model()
 
-    #EBMI initialize (first step of two)
+    # EBMI initialize (first step of two)
     def initialize_config(self, fileName):
         logger.info("PCRGlobWB: initialize_config")
 
         try:
 
-            self.configuration = Configuration(fileName, relative_ini_meteo_paths = True)
+            self.configuration = Configuration(fileName, relative_ini_meteo_paths=True)
             pcr.setclone(self.configuration.cloneMap)
 
             # set start and end time based on configuration
             self.model_time = ModelTime()
-            self.model_time.getStartEndTimeSteps(self.configuration.globalOptions['startTime'],
-                                             self.configuration.globalOptions['endTime'])
+            self.model_time.getStartEndTimeSteps(
+                self.configuration.globalOptions["startTime"],
+                self.configuration.globalOptions["endTime"],
+            )
 
             self.model_time.update(0)
 
@@ -59,14 +64,14 @@ class BmiPCRGlobWB(EBmi):
 
         except:
             import traceback
+
             traceback.print_exc()
             raise
 
-
-    #EBMI initialize (second step of two)
+    # EBMI initialize (second step of two)
     def initialize_model(self):
         if self.model is not None:
-            #already initialized
+            # already initialized
             return
 
         try:
@@ -84,10 +89,9 @@ class BmiPCRGlobWB(EBmi):
 
         except:
             import traceback
+
             traceback.print_exc()
             raise
-
-
 
     def update(self):
         timestep = self.model_time.timeStepPCR
@@ -102,7 +106,6 @@ class BmiPCRGlobWB(EBmi):
     #         numpy = pcr.pcr2numpy(self.model.landSurface.satDegUpp000005, np.NaN)
     #         print numpy.shape
     #         print numpy
-
 
     def update_until(self, time):
         while self.get_current_time() + 0.001 < time:
@@ -124,11 +127,11 @@ class BmiPCRGlobWB(EBmi):
         return ["top_layer_soil_saturation"]
 
     def get_var_type(self, long_var_name):
-        return 'float64'
+        return "float64"
 
     def get_var_units(self, long_var_name):
-        #TODO: this is not a proper unit
-        return '1'
+        # TODO: this is not a proper unit
+        return "1"
 
     def get_var_rank(self, long_var_name):
         return 0
@@ -157,13 +160,18 @@ class BmiPCRGlobWB(EBmi):
     def get_value(self, long_var_name):
         logger.info("getting value for var %s", long_var_name)
 
-        if (long_var_name == "top_layer_soil_saturation"):
+        if long_var_name == "top_layer_soil_saturation":
 
-            if self.model is not None and hasattr(self.model.landSurface, 'satDegUpp000005'):
+            if self.model is not None and hasattr(
+                self.model.landSurface, "satDegUpp000005"
+            ):
 
-                #first make all NanS into 0.0 with cover, then cut out the model using the landmask.
+                # first make all NanS into 0.0 with cover, then cut out the model using the landmask.
                 # This should not actually make a difference.
-                remasked = pcr.ifthen(self.model.landmask, pcr.cover(self.model.landSurface.satDegUpp000005, 0.0))
+                remasked = pcr.ifthen(
+                    self.model.landmask,
+                    pcr.cover(self.model.landSurface.satDegUpp000005, 0.0),
+                )
 
                 pcr.report(self.model.landSurface.satDegUpp000005, "value.map")
                 pcr.report(remasked, "remasked.map")
@@ -171,7 +179,9 @@ class BmiPCRGlobWB(EBmi):
                 value = pcr.pcr2numpy(remasked, np.NaN)
 
             else:
-                logger.info("model has not run yet, returning empty state for top_layer_soil_saturation")
+                logger.info(
+                    "model has not run yet, returning empty state for top_layer_soil_saturation"
+                )
                 value = pcr.pcr2numpy(pcr.scalar(0.0), np.NaN)
 
             # print "getting var", value
@@ -211,7 +221,9 @@ class BmiPCRGlobWB(EBmi):
 
         pcr.report(observed_satDegUpp000005, "observed.map")
 
-        constrained_satDegUpp000005 = pcr.min(1.0, pcr.max(0.0, observed_satDegUpp000005))
+        constrained_satDegUpp000005 = pcr.min(
+            1.0, pcr.max(0.0, observed_satDegUpp000005)
+        )
 
         pcr.report(constrained_satDegUpp000005, "constrained.map")
 
@@ -220,29 +232,42 @@ class BmiPCRGlobWB(EBmi):
         pcr.report(diffmap, "diffmap.map")
 
         # ratio between observation and model
-        ratio_between_observation_and_model = pcr.ifthenelse(self.model.landSurface.satDegUpp000005 > 0.0,
-                                                             constrained_satDegUpp000005 / \
-                                                             self.model.landSurface.satDegUpp000005, 0.0)
+        ratio_between_observation_and_model = pcr.ifthenelse(
+            self.model.landSurface.satDegUpp000005 > 0.0,
+            constrained_satDegUpp000005 / self.model.landSurface.satDegUpp000005,
+            0.0,
+        )
 
         # updating upper soil states for all lad cover types
         for coverType in self.model.landSurface.coverTypes:
             # correcting upper soil state (storUpp000005)
-            self.model.landSurface.landCoverObj[coverType].storUpp000005 *= ratio_between_observation_and_model
+            self.model.landSurface.landCoverObj[
+                coverType
+            ].storUpp000005 *= ratio_between_observation_and_model
 
-            # if model value = 0.0, storUpp000005 is calculated based on storage capacity (model parameter) and observed saturation degree   
-            self.model.landSurface.landCoverObj[coverType].storUpp000005 = pcr.ifthenelse(
-                self.model.landSurface.satDegUpp000005 > 0.0, \
-                self.model.landSurface.landCoverObj[coverType].storUpp000005, \
-                constrained_satDegUpp000005 * self.model.landSurface.parameters.storCapUpp000005)
+            # if model value = 0.0, storUpp000005 is calculated based on storage capacity (model parameter) and observed saturation degree
+            self.model.landSurface.landCoverObj[coverType].storUpp000005 = (
+                pcr.ifthenelse(
+                    self.model.landSurface.satDegUpp000005 > 0.0,
+                    self.model.landSurface.landCoverObj[coverType].storUpp000005,
+                    constrained_satDegUpp000005
+                    * self.model.landSurface.parameters.storCapUpp000005,
+                )
+            )
             # correct for any scaling issues (value < 0 or > 1 do not make sense
-            self.model.landSurface.landCoverObj[coverType].storUpp000005 = pcr.min(1.0, pcr.max(0.0,
-                                                                                                self.model.landSurface.landCoverObj[
-                                                                                                    coverType].storUpp000005))
+            self.model.landSurface.landCoverObj[coverType].storUpp000005 = pcr.min(
+                1.0,
+                pcr.max(
+                    0.0, self.model.landSurface.landCoverObj[coverType].storUpp000005
+                ),
+            )
 
     def set_value(self, long_var_name, src):
 
-        if self.model is None or not hasattr(self.model.landSurface, 'satDegUpp000005'):
-            logger.info("cannot set value for %s, as model has not run yet.", long_var_name)
+        if self.model is None or not hasattr(self.model.landSurface, "satDegUpp000005"):
+            logger.info(
+                "cannot set value for %s, as model has not run yet.", long_var_name
+            )
             return
 
         logger.info("setting value for %s", long_var_name)
@@ -266,7 +291,7 @@ class BmiPCRGlobWB(EBmi):
 
         logger.info("setting value shape %s", src.shape)
 
-        if (long_var_name == "top_layer_soil_saturation"):
+        if long_var_name == "top_layer_soil_saturation":
             self.set_satDegUpp000005(src)
         else:
             raise Exception("unknown var name" + long_var_name)
@@ -320,7 +345,7 @@ class BmiPCRGlobWB(EBmi):
     def get_grid_offset(self, long_var_name):
         raise ValueError
 
-    #EBMI functions
+    # EBMI functions
 
     def set_start_time(self, start_time):
         self.model_time.setStartTime(self.in_modeltime(start_time))
@@ -345,7 +370,6 @@ class BmiPCRGlobWB(EBmi):
         raise NotImplementedError
 
 
-
 class ScaledBmiPCRGlobWB(BmiPCRGlobWB):
     factor = 5
 
@@ -353,9 +377,9 @@ class ScaledBmiPCRGlobWB(BmiPCRGlobWB):
         # small value for comparison
         current_value = self.get_value(long_var_name)
 
-        print('current value after scaling', current_value)
+        print("current value after scaling", current_value)
 
-        print('value given by user', scaled_new_value)
+        print("value given by user", scaled_new_value)
 
         diff = scaled_new_value - current_value
 
