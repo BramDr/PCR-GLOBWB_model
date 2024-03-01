@@ -4,7 +4,7 @@ on: [pull_request]
 
 jobs:
   linting:
-    if: startsWith(github.head_ref, 'black-patches') == false
+    if: ${{ github.event.pull_request.merged }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
