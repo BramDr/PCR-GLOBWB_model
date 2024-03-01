@@ -12,6 +12,14 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ github.repository }}
+      - name: Print some variables
+        run: | 
+          git_hash=$(git rev-parse --short "$GITHUB_SHA")
+          git_branch=${GITHUB_REF#refs/heads/}
+          echo "$GITHUG_SHA"
+          echo "$GITHUG_REF"
+          echo "$git_hash"
+          echo "$git_branch"
       - name: Run Black
         id: black
         uses: psf/black@stable
@@ -25,4 +33,4 @@ jobs:
           git config user.email github-actions@github.com
           git add .
           git commit -m "automatically generated black linting"
-          git push origin HEAD:${{ github.repository }}
+          git push
