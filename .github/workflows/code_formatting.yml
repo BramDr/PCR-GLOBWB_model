@@ -3,8 +3,7 @@ name: Code formatting
 on: [pull_request]
 
 jobs:
-  black-linting:
-    # Check if the pull-request is not raised by this workflow
+  linting:
     if: startsWith(github.head_ref, 'black-patches') == false
     runs-on: ubuntu-latest
     steps:
@@ -13,19 +12,8 @@ jobs:
         with:
           repository: ${{ github.repository }}
           ref: ${{ github.head_ref }}
-      - name: Show GitHub context
-        env:
-          GITHUB_CONTEXT: ${{ toJson(github) }}
-        run: echo "$GITHUB_CONTEXT"
-      - name: Print some variables
-        run: | 
-          git_hash=$(git rev-parse --short "$GITHUB_SHA")
-          git_branch=${GITHUB_REF#refs/heads/}
-          echo "$GITHUB_SHA"
-          echo "$GITHUB_REF"
-          echo "$git_hash"
-          echo "$git_branch"
-          echo "black-patches/${{ github.head_ref }}"
+      - name: "Run isort"
+        uses: isort/isort-action@v1
       - name: Run Black
         id: black
         uses: psf/black@stable
@@ -33,19 +21,10 @@ jobs:
           options: "--verbose"
           src: "."
         continue-on-error: true
-      # - name: Create Pull Request
-      #   uses: peter-evans/create-pull-request@v6
-      #   with:
-      #     commit-message: black linting
-      #     title: black linting
-      #     body: automatically generated black linting
-      #     labels: black
-      #     branch: "black-patches/${{ github.head_ref }}"
       - name: Commit changes
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
           git add .
-          git commit -m "automatically generated black linting"
+          git commit -m "automatically generated isort and black linting"
           git push
-      # git push origin HEAD:${{ github.ref }}
