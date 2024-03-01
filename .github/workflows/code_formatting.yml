@@ -12,12 +12,16 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ github.repository }}
+      - name: Show GitHub context
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+        run: echo "$GITHUB_CONTEXT"
       - name: Print some variables
         run: | 
           git_hash=$(git rev-parse --short "$GITHUB_SHA")
           git_branch=${GITHUB_REF#refs/heads/}
-          echo "$GITHUG_SHA"
-          echo "$GITHUG_REF"
+          echo GITHUG_SHA
+          echo GITHUG_REF
           echo "$git_hash"
           echo "$git_branch"
       - name: Run Black
@@ -33,4 +37,4 @@ jobs:
           git config user.email github-actions@github.com
           git add .
           git commit -m "automatically generated black linting"
-          git push
+          git push ${{ github.event.pull_request.head.sha }}
