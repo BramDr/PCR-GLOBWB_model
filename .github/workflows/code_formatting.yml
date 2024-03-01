@@ -10,6 +10,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}
       - name: Run Black
         id: black
         uses: psf/black@stable
@@ -23,4 +25,4 @@ jobs:
           git config user.email github-actions@github.com
           git add .
           git commit -m "automatically generated black linting"
-          git push
+          git push origin HEAD:${{ github.repository }}
