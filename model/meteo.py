@@ -149,10 +149,10 @@ class Meteo(object):
                                       'wind_speed_10m_v_comp',\
                                       'atmospheric_pressure',\
                                       'extraterestrial_radiation',\
-                                      'shortwave_radiation',\
-                                      'longwave_radiation',\
+                                      'down_shortwave_radiation',\
+                                      'net_longwave_radiation',\
                                       'relative_humidity',\
-                                      'surface_net_solar_radiation',\
+                                      'net_shortwave_radiation',\
                                       'albedo',\
                                       'air_temperature_max',\
                                       'air_temperature_min',\
@@ -183,7 +183,7 @@ class Meteo(object):
         
         # initiate shortwave radiation class, required for the Bristow-Campbell method
         self.sw_rad_based_on_bristow_campbell = False
-        if ('shortwave_radiation' in iniItems.meteoOptions) and (iniItems.meteoOptions['shortwave_radiation'] == "Bristow-Campbell"):
+        if ('down_shortwave_radiation' in iniItems.meteoOptions) and (iniItems.meteoOptions['down_shortwave_radiation'] == "Bristow-Campbell"):
             
             self.sw_rad_based_on_bristow_campbell = True
 
@@ -563,18 +563,18 @@ class Meteo(object):
 
             # shortwave radiation
             
-            if self.iniItems.meteoOptions['shortwave_radiation'].endswith(('.nc', '.nc4', '.nc3')):
+            if self.iniItems.meteoOptions['down_shortwave_radiation'].endswith(('.nc', '.nc4', '.nc3')):
 
                 msg = "Shortwave (solar) radiation is obtained from the input file."
                 logger.info(msg)
                 
 
-            if self.iniItems.meteoOptions['shortwave_radiation'] == "None":
+            if self.iniItems.meteoOptions['down_shortwave_radiation'] == "None":
         
                 msg = "Estimating shortwave (solar) radiation based on the input of net radiation and albedo."
                 logger.info(msg)
                 
-                self.shortwave_radiation = self.surface_net_solar_radiation / (pcr.spatial(pcr.scalar(1.0)) - self.albedo)
+                self.down_shortwave_radiation = self.net_shortwave_radiation / (pcr.spatial(pcr.scalar(1.0)) - self.albedo)
                 
 
             if self.sw_rad_based_on_bristow_campbell == True:
@@ -582,7 +582,7 @@ class Meteo(object):
                 msg = "Estimating shortwave (solar) radiation based on an adaptation of the Bristow-Campbell model by Winslow et al (2001)."
                 logger.info(msg)
                 
-                # TODO: Note initiating shortwave_radiation module still must be done at every time step as temp_annual and delta_temp_mean is defined on the 'init' part)
+                # TODO: Note initiating ShortwaveRadiation module still must be done at every time step as temp_annual and delta_temp_mean is defined on the 'init' part)
 
                 # initiate short wave radiation class with the the solar constant = 118.1 MJ/m2/day
                 self.sw_rad_model = sw_rad.ShortwaveRadiation(latitude        = self.latitudes, \
@@ -604,7 +604,7 @@ class Meteo(object):
                 extraterrestrial_rad_in_watt_per_m2 = self.extraterestrial_radiation
                 extraterrestrial_rad = extraterrestrial_rad_in_watt_per_m2 * 0.0864
 
-                # calculate shortwave_radiation
+                # calculate down_shortwave_radiation
                 self.sw_rad_model.update(date                 = currTimeStep._currTimeFull, \
                                          prec_daily           = self.precipitation, \
                                          temp_min_daily       = self.air_temperature_min, \
@@ -616,24 +616,24 @@ class Meteo(object):
                                          )
                 
                 # using the values from the shortwave radiation model (unit: J.m-2.day-1)
-                self.shortwave_radiation       = self.sw_rad_model.radsw_act * 1e6
+                self.down_shortwave_radiation       = self.sw_rad_model.radsw_act * 1e6
             
             # set the shortwave radiation unit to W.m-2
-            if "shortwave_radiation_input_in_w_per_m2" in list(self.iniItems.meteoOptions.keys()) and \
-                                                        (self.iniItems.meteoOptions['shortwave_radiation_input_in_w_per_m2'] == "True"): 
-                self.shortwave_radiation = pcr.max(0.0, self.shortwave_radiation) 
+            if "down_shortwave_radiation_input_in_w_per_m2" in list(self.iniItems.meteoOptions.keys()) and \
+                                                        (self.iniItems.meteoOptions['down_shortwave_radiation_input_in_w_per_m2'] == "True"): 
+                self.down_shortwave_radiation = pcr.max(0.0, self.down_shortwave_radiation) 
             else:
-                self.shortwave_radiation = pcr.max(0.0, self.shortwave_radiation / 1e6) / 0.0864
+                self.down_shortwave_radiation = pcr.max(0.0, self.down_shortwave_radiation / 1e6) / 0.0864
 
             #~ # debug
-            #~ pcr.aguila(self.shortwave_radiation)
+            #~ pcr.aguila(self.down_shortwave_radiation)
             #~ input("Press Enter to continue...")
             #~ os.system("killall aguila")
 
             # longwave radiation
             
-            if "longwave_radiation" in list(self.iniItems.meteoOptions.keys()) and\
-                                            self.iniItems.meteoOptions['longwave_radiation'].endswith(('.nc', '.nc4', '.nc3')):
+            if "net_longwave_radiation" in list(self.iniItems.meteoOptions.keys()) and\
+                                            self.iniItems.meteoOptions['net_longwave_radiation'].endswith(('.nc', '.nc4', '.nc3')):
 
                 msg = "Longwave radiation is obtained from the input file."
                 logger.info(msg)
@@ -641,11 +641,11 @@ class Meteo(object):
                 # make sure that longwave radiation unit is W.m-2
                 # - note that the default unit for the input file defined in the configuration file is J.m-2.day-1
                 # - therefore we have set the longwave radiation unit to W.m-2
-                if "longwave_radiation_input_in_w_per_m2" in list(self.iniItems.meteoOptions.keys()) and \
-                                                            (self.iniItems.meteoOptions['longwave_radiation_input_in_w_per_m2'] == "True"): 
-                    self.longwave_radiation = pcr.max(0.0, self.longwave_radiation) 
+                if "net_longwave_radiation_input_in_w_per_m2" in list(self.iniItems.meteoOptions.keys()) and \
+                                                            (self.iniItems.meteoOptions['net_longwave_radiation_input_in_w_per_m2'] == "True"): 
+                    self.net_longwave_radiation = pcr.max(0.0, self.net_longwave_radiation) 
                 else:
-                    self.longwave_radiation = pcr.max(0.0, self.longwave_radiation / 1e6) / 0.0864
+                    self.net_longwave_radiation = pcr.max(0.0, self.net_longwave_radiation / 1e6) / 0.0864
 
             else:    
 
@@ -654,17 +654,18 @@ class Meteo(object):
                 
                 # fraction of shortWaveRadiation (dimensionless)
                 fractionShortWaveRadiation = pcr.cover(pcr.min(1.0, \
-                                                        self.shortwave_radiation / self.extraterestrial_radiation), 0.0)
+                                                        self.down_shortwave_radiation / self.extraterestrial_radiation), 0.0)
             
                 # longwave radiation (already) in W.m**-2
-                self.longwave_radiation = penman_monteith.getLongWaveRadiation(self.temperature, \
+                self.net_longwave_radiation = penman_monteith.getLongWaveRadiation(self.temperature, \
                                                                                vapourPressure, \
                                                                                fractionShortWaveRadiation, \
                                                                                self.relative_humidity)
 
             
             # calculate net radiation (unit: W.m**-2)
-            self.net_radiation = pcr.max(0.0, self.shortwave_radiation - self.longwave_radiation)
+            net_shortwave_radiation = self.down_shortwave_radiation * (pcr.spatial(pcr.scalar(1.0)) - self.penman_monteith.albedo)
+            self.net_radiation = pcr.max(0.0, net_shortwave_radiation + self.net_longwave_radiation)
             
             # referencePotET in m.day-1
             self.referencePotET = self.penman_monteith.updatePotentialEvaporation(netRadiation        = self.net_radiation, 
