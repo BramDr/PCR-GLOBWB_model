@@ -772,6 +772,18 @@ def modify_ini_file(original_ini_file, system_argument):
         )
         print(msg)
 
+    # configuration_file_for_wofost / WOFOST_CONFIG_FILE
+    if "-wcf" in system_argument:
+        wofost_config_file = system_argument[system_argument.index("-wcf") + 1]
+        file_ini_content = file_ini_content.replace(
+            "WOFOST_CONFIG_FILE", wofost_config_file
+        )
+        msg = (
+            "The configuration file to run WOFOST is set based on the system argument (-wcf): "
+            + wofost_config_file
+        )
+        print(msg)
+
     # folder for the original and modified ini files
     folder_for_ini_files = os.path.join(main_output_dir, "ini_files")
     # for a run that is part of a set of parallel (clone) runs

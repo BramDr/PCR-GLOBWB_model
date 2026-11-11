@@ -38,9 +38,47 @@ class LandCover(object):
         self.iniItemsLC = iniItems.__getattribute__(nameOfSectionInIniFile)
         self.name = self.iniItemsLC["name"]
 
+        self.wofostCropName = None
+        if (
+            "wofostCropName" in list(self.iniItemsLC.keys())
+            and self.iniItemsLC["wofostCropName"] != "None"
+        ):
+            self.wofostCropName = self.iniItemsLC["wofostCropName"]
+
         self.includeIrrigation = False
         if iniItems.waterDemandOptions["includeIrrigation"] == "True":
             self.includeIrrigation = True
+
+        self.irrigationType = None
+        if (
+            "irrigationType" in list(self.iniItemsLC.keys())
+            and self.iniItemsLC["irrigationType"] != "None"
+        ):
+            self.irrigationType = self.iniItemsLC["irrigationType"]
+
+        if self.irrigationType is not None:
+            if self.irrigationType not in ["irrPaddy", "irrNonPaddy"]:
+                msg = (
+                    "irrigationType should be irrPaddy or irrNonPaddy, not "
+                    + self.irrigationType
+                    + "."
+                )
+                raise ValueError(msg)
+
+        if self.irrigationType is None and self.name.startswith("irr"):
+            msg = (
+                "Landcover name starts with irr ("
+                + self.name
+                + "), but irrigationType is not specified."
+            )
+            raise ValueError(msg)
+        elif self.irrigationType is not None and not self.name.startswith("irr"):
+            msg = (
+                "Landcover name does not start with irr ("
+                + self.name
+                + "), but irrigationType is specified."
+            )
+            raise ValueError(msg)
 
         # irrigation efficiency map (-)
         self.irrigationEfficiency = irrigationEfficiency
@@ -246,7 +284,7 @@ class LandCover(object):
 
         # additional parameters for irrigation areas (always fixed): cropDeplFactor (-), the crop
         # depletion factor during irrigation, needed for non-paddy irrigation areas
-        if self.iniItemsLC["name"].startswith("irr") and self.name != "irrPaddy":
+        if self.irrigationType == "irrNonPaddy":
             self.cropDeplFactor = vos.readPCRmapClone(
                 self.iniItemsLC["cropDeplFactor"],
                 self.cloneMap,
@@ -254,50 +292,48 @@ class LandCover(object):
                 self.inputDir,
             )
         # infiltration/percolation losses of paddy fields
-        if self.name == "irrPaddy" or self.name == "irr_paddy":
+        if self.irrigationType == "irrPaddy":
             self.design_percolation_loss = self.estimate_paddy_infiltration_loss(
                 self.iniItemsLC
             )
 
-        # crop coefficient files
-        self.cropCoefficientNC = vos.getFullPath(
-            self.iniItemsLC["cropCoefficientNC"], self.inputDir
-        )
+        self.cropCoefficientNC = None
+        self.coverFractionNC = None
+        self.interceptCapNC = None
+        if self.wofostCropName is None:
+            # crop coefficient files
+            if (
+                "cropCoefficientNC" in list(self.iniItemsLC.keys())
+                and self.iniItemsLC["cropCoefficientNC"] != "None"
+            ):
+                self.cropCoefficientNC = vos.getFullPath(
+                    self.iniItemsLC["cropCoefficientNC"], self.inputDir
+                )
 
-        # interception capacity and cover fraction files
-        if "interceptCapNC" in list(
-            self.iniItemsLC.keys()
-        ) and "coverFractionNC" in list(self.iniItemsLC.keys()):
-            self.interceptCapNC = vos.getFullPath(
-                self.iniItemsLC["interceptCapNC"], self.inputDir
-            )
-            self.coverFractionNC = vos.getFullPath(
-                self.iniItemsLC["coverFractionNC"], self.inputDir
-            )
-        else:
-            msg = (
-                "The netcdf files for interceptCapNC (interception capacity) and/or coverFraction (canopy cover fraction) are NOT defined for the landCover type: "
-                + self.name
-                + "\n"
-            )
-            msg = (
-                "This run assumes zero canopy interception capacity for this run, UNLESS minInterceptCap (minimum interception capacity) is bigger than zero."
-                + "\n"
-            )
-            logger.warning(msg)
-            self.coverFractionNC = None
-            self.interceptCapNC = None
-
-        if (
-            "coverFractionNC" in list(self.iniItemsLC.keys())
-            and self.iniItemsLC["coverFractionNC"] == "None"
-        ):
-            self.coverFractionNC = None
-        if (
-            "interceptCapNC" in list(self.iniItemsLC.keys())
-            and self.iniItemsLC["interceptCapNC"] == "None"
-        ):
-            self.interceptCapNC = None
+            # interception capacity and cover fraction files
+            if (
+                "interceptCapNC" in list(self.iniItemsLC.keys())
+                and self.iniItemsLC["interceptCapNC"] != "None"
+                and "coverFractionNC" in list(self.iniItemsLC.keys())
+                and self.iniItemsLC["coverFractionNC"] != "None"
+            ):
+                self.interceptCapNC = vos.getFullPath(
+                    self.iniItemsLC["interceptCapNC"], self.inputDir
+                )
+                self.coverFractionNC = vos.getFullPath(
+                    self.iniItemsLC["coverFractionNC"], self.inputDir
+                )
+            else:
+                msg = (
+                    "The netcdf files for interceptCapNC (interception capacity) and/or coverFraction (canopy cover fraction) are NOT defined for the landCover type: "
+                    + self.name
+                    + "\n"
+                )
+                msg = (
+                    "This run assumes zero canopy interception capacity for this run, UNLESS minInterceptCap (minimum interception capacity) is bigger than zero."
+                    + "\n"
+                )
+                logger.warning(msg)
 
         # netCDF output
         self.report = True
@@ -993,7 +1029,7 @@ class LandCover(object):
             self.calculateParametersAtHalfTranspiration()
 
         # crop coefficient
-        if self.iniItemsLC["cropCoefficientNC"] == "None":
+        if self.cropCoefficientNC is None:
             cropKC = pcr.ifthen(self.landmask, pcr.spatial(pcr.scalar(0.0)))
         else:
             cropKC = pcr.cover(
@@ -1749,7 +1785,12 @@ class LandCover(object):
                 )
                 * pcr.min(
                     self.parameters.thickLow030150,
-                    pcr.max(self.rootDepth - self.parameters.thickUpp030150, 0.0),
+                    pcr.max(
+                        self.rootDepth
+                        - self.parameters.thickUpp000005
+                        - self.parameters.thickUpp005030,
+                        0.0,
+                    ),
                 )
             )
 
@@ -1769,7 +1810,7 @@ class LandCover(object):
         self.directRunoff = pcr.min(self.topWaterLayer, self.directRunoff)
 
         # minimize directRunoff in irrigation areas
-        if self.name.startswith("irr") and self.includeIrrigation:
+        if self.irrigationType is not None and self.includeIrrigation:
             self.directRunoff = pcr.scalar(0.0)
 
         # update topWaterLayer after directRunoff
@@ -1914,7 +1955,7 @@ class LandCover(object):
         # openWaterEvap is only for evaporation from paddy fields
         self.openWaterEvap = pcr.spatial(pcr.scalar(0.0))
 
-        if self.name == "irrPaddy" or self.name == "irr_paddy":
+        if self.irrigationType == "irrPaddy":
             self.openWaterEvap = pcr.min(
                 pcr.max(0.0, self.topWaterLayer), remainingPotETP
             )
@@ -1956,9 +1997,7 @@ class LandCover(object):
             )
 
         # for paddy fields, infiltration should consider percolation losses
-        if (
-            self.name == "irrPaddy" or self.name == "irr_paddy"
-        ) and self.includeIrrigation:
+        if self.irrigationType == "irrPaddy" and self.includeIrrigation:
             infiltration_loss = pcr.max(
                 self.design_percolation_loss,
                 ((1.0 / self.irrigationEfficiencyUsed) - 1.0) * self.topWaterLayer,
@@ -2033,7 +2072,7 @@ class LandCover(object):
         relActTranspiration = pcr.min(1.0, relActTranspiration)
 
         # Edwin (23 March 2015): no transpiration reduction in irrigated areas
-        if self.name.startswith("irr") and self.includeIrrigation:
+        if self.irrigationType is not None and self.includeIrrigation:
             relActTranspiration = pcr.scalar(1.0)
 
         # partition potential transpiration (based on Rens's oldcalc script of 30 July 2015)
@@ -2092,7 +2131,7 @@ class LandCover(object):
         actBareSoilEvap = pcr.cover(actBareSoilEvap, 0.0)
 
         # no bare soil evaporation in inundated paddy fields
-        if self.name == "irrPaddy" or self.name == "irr_paddy":
+        if self.irrigationType == "irrPaddy":
             # no bare soil evaporation if topWaterLayer is above the threshold (Edwin, 23 March 2015)
             treshold = self.potBareSoilEvap + self.potTranspiration
             actBareSoilEvap = pcr.ifthenelse(
@@ -2423,11 +2462,11 @@ class LandCover(object):
     def scaleAllFluxesForIrrigatedAreas(self, groundwater):
 
         # minimize interflow in irrigation areas
-        if self.name.startswith("irr"):
+        if self.irrigationType is not None:
             self.interflow = 0.0
 
         # idea of 16 June 2015: deep percolation should consider irrigation application losses
-        if self.name.startswith("irr"):
+        if self.irrigationType is not None:
 
             # the starting crop coefficient indicates the growing season
             startingKC = 0.20
@@ -2744,7 +2783,7 @@ class LandCover(object):
         self.estimateSoilFluxes(capRiseFrac, groundwater)
 
         # limit all fluxes to the available (source) storage
-        if self.name.startswith("irr") and self.includeIrrigation:
+        if self.irrigationType is not None and self.includeIrrigation:
             self.scaleAllFluxesForIrrigatedAreas(groundwater)
         else:
             self.scaleAllFluxes(groundwater)
@@ -2754,7 +2793,7 @@ class LandCover(object):
 
         # irrigation transpiration deficit for reporting
         self.irrigationTranspirationDeficit = 0.0
-        if self.name.startswith("irr"):
+        if self.irrigationType is not None:
             self.irrigationTranspirationDeficit = pcr.max(
                 0.0, self.potTranspiration - self.actTranspiTotal
             )
