@@ -231,6 +231,8 @@ class LandCover(object):
                 ) = self.get_land_cover_parameters()
             # parameters at which transpiration is halved
             self.calculateParametersAtHalfTranspiration()
+            # Register the root depth as the maximum root depth for now, this may be overwritten by WOFOST later
+            self.rootDepth = self.maxRootDepth
 
         # additional land cover parameters (always fixed for the entire simulation)
         landCovParamsAdd = ["minTopWaterLayer", "minCropKC"]
@@ -984,6 +986,8 @@ class LandCover(object):
                     self.adjRootFrUpp005030,
                     self.adjRootFrLow030150,
                 ) = self.get_land_cover_parameters(currTimeStep.fulldate)
+            # Register the root depth as the maximum root depth for now, this may be overwritten by WOFOST later
+            self.rootDepth = self.maxRootDepth
 
             # parameters at which transpiration is halved (sets effSatAt50 and effPoreSizeBetaAt50)
             self.calculateParametersAtHalfTranspiration()
@@ -1589,14 +1593,14 @@ class LandCover(object):
             ) * (
                 self.parameters.satVolMoistContUpp - self.parameters.resVolMoistContUpp
             ) * pcr.min(
-                self.parameters.thickUpp, self.maxRootDepth
+                self.parameters.thickUpp, self.rootDepth
             ) + (
                 pcr.max(0.0, self.effSatLow - self.parameters.effSatAtWiltPointLow)
             ) * (
                 self.parameters.satVolMoistContLow - self.parameters.resVolMoistContLow
             ) * pcr.min(
                 self.parameters.thickLow,
-                pcr.max(self.maxRootDepth - self.parameters.thickUpp, 0.0),
+                pcr.max(self.rootDepth - self.parameters.thickUpp, 0.0),
             )
 
         if self.numberOfLayers == 3:
@@ -1716,7 +1720,7 @@ class LandCover(object):
                     self.parameters.satVolMoistContUpp000005
                     - self.parameters.resVolMoistContUpp000005
                 )
-                * pcr.min(self.parameters.thickUpp000005, self.maxRootDepth)
+                * pcr.min(self.parameters.thickUpp000005, self.rootDepth)
                 + (
                     pcr.max(
                         0.0,
@@ -1730,7 +1734,7 @@ class LandCover(object):
                 )
                 * pcr.min(
                     self.parameters.thickUpp005030,
-                    pcr.max(self.maxRootDepth - self.parameters.thickUpp000005),
+                    pcr.max(0.0, self.rootDepth - self.parameters.thickUpp000005),
                 )
                 + (
                     pcr.max(
@@ -1745,7 +1749,7 @@ class LandCover(object):
                 )
                 * pcr.min(
                     self.parameters.thickLow030150,
-                    pcr.max(self.maxRootDepth - self.parameters.thickUpp005030, 0.0),
+                    pcr.max(self.rootDepth - self.parameters.thickUpp030150, 0.0),
                 )
             )
 

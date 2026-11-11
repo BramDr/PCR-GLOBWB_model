@@ -47,11 +47,6 @@ class IrrigationWaterDemand(object):
 
         self.numberOfLayers = landCoverObject.numberOfLayers
 
-        self.maxRootDepth = landCoverObject.maxRootDepth
-
-        # water capacity within the root zone (sets self.totAvlWater)
-        self.calculateTotAvlWaterCapacityInRootZone()
-
         # irrigation efficiency input (value or file name)
         self.ini_items_for_irrigation_efficiency = None
         # by default, use the one in waterDemandOptions
@@ -176,7 +171,7 @@ class IrrigationWaterDemand(object):
 
         if self.numberOfLayers == 2:
             # Edwin uses the soil thicknesses thickUpp and thickLow instead of storCapUpp and storCapLow
-            self.totAvlWater = (
+            totAvlWater = (
                 pcr.max(
                     0.0,
                     self.parameters.effSatAtFieldCapUpp
@@ -185,7 +180,7 @@ class IrrigationWaterDemand(object):
             ) * (
                 self.parameters.satVolMoistContUpp - self.parameters.resVolMoistContUpp
             ) * pcr.min(
-                self.parameters.thickUpp, self.maxRootDepth
+                self.parameters.thickUpp, self.rootDepth
             ) + (
                 pcr.max(
                     0.0,
@@ -196,16 +191,16 @@ class IrrigationWaterDemand(object):
                 self.parameters.satVolMoistContLow - self.parameters.resVolMoistContLow
             ) * pcr.min(
                 self.parameters.thickLow,
-                pcr.max(self.maxRootDepth - self.parameters.thickUpp, 0.0),
+                pcr.max(self.rootDepth - self.parameters.thickUpp, 0.0),
             )
             # (supported by Rens)
-            self.totAvlWater = pcr.min(
-                self.totAvlWater,
+            totAvlWater = pcr.min(
+                totAvlWater,
                 self.parameters.storCapUpp + self.parameters.storCapLow,
             )
 
         if self.numberOfLayers == 3:
-            self.totAvlWater = (
+            totAvlWater = (
                 (
                     pcr.max(
                         0.0,
@@ -217,7 +212,7 @@ class IrrigationWaterDemand(object):
                     self.parameters.satVolMoistContUpp000005
                     - self.parameters.resVolMoistContUpp000005
                 )
-                * pcr.min(self.parameters.thickUpp000005, self.maxRootDepth)
+                * pcr.min(self.parameters.thickUpp000005, self.rootDepth)
                 + (
                     pcr.max(
                         0.0,
@@ -231,7 +226,7 @@ class IrrigationWaterDemand(object):
                 )
                 * pcr.min(
                     self.parameters.thickUpp005030,
-                    pcr.max(self.maxRootDepth - self.parameters.thickUpp000005),
+                    pcr.max(0.0, self.rootDepth - self.parameters.thickUpp000005),
                 )
                 + (
                     pcr.max(
@@ -246,15 +241,17 @@ class IrrigationWaterDemand(object):
                 )
                 * pcr.min(
                     self.parameters.thickLow030150,
-                    pcr.max(self.maxRootDepth - self.parameters.thickUpp005030, 0.0),
+                    pcr.max(self.rootDepth - self.parameters.thickUpp030150, 0.0),
                 )
             )
-            self.totAvlWater = pcr.min(
-                self.totAvlWater,
+            totAvlWater = pcr.min(
+                totAvlWater,
                 self.parameters.storCapUpp000005
                 + self.parameters.storCapUpp005030
                 + self.parameters.storCapLow030150,
             )
+
+        return totAvlWater
 
     def get_readily_available_water_within_the_root_zone(self):
 
@@ -270,14 +267,14 @@ class IrrigationWaterDemand(object):
             ) * (
                 self.parameters.satVolMoistContUpp - self.parameters.resVolMoistContUpp
             ) * pcr.min(
-                self.parameters.thickUpp, self.maxRootDepth
+                self.parameters.thickUpp, self.rootDepth
             ) + (
                 pcr.max(0.0, effSatLow - self.parameters.effSatAtWiltPointLow)
             ) * (
                 self.parameters.satVolMoistContLow - self.parameters.resVolMoistContLow
             ) * pcr.min(
                 self.parameters.thickLow,
-                pcr.max(self.maxRootDepth - self.parameters.thickUpp, 0.0),
+                pcr.max(self.rootDepth - self.parameters.thickUpp, 0.0),
             )
 
         if self.numberOfLayers == 3:
@@ -307,7 +304,7 @@ class IrrigationWaterDemand(object):
                     self.parameters.satVolMoistContUpp000005
                     - self.parameters.resVolMoistContUpp000005
                 )
-                * pcr.min(self.parameters.thickUpp000005, self.maxRootDepth)
+                * pcr.min(self.parameters.thickUpp000005, self.rootDepth)
                 + (
                     pcr.max(
                         0.0,
@@ -320,7 +317,7 @@ class IrrigationWaterDemand(object):
                 )
                 * pcr.min(
                     self.parameters.thickUpp005030,
-                    pcr.max(self.maxRootDepth - self.parameters.thickUpp000005),
+                    pcr.max(0.0, self.rootDepth - self.parameters.thickUpp000005),
                 )
                 + (
                     pcr.max(
@@ -334,7 +331,7 @@ class IrrigationWaterDemand(object):
                 )
                 * pcr.min(
                     self.parameters.thickLow030150,
-                    pcr.max(self.maxRootDepth - self.parameters.thickUpp005030, 0.0),
+                    pcr.max(self.rootDepth - self.parameters.thickUpp030150, 0.0),
                 )
             )
 
@@ -345,6 +342,7 @@ class IrrigationWaterDemand(object):
         # variables from landSurface.landCoverObj
         self.cropKC = landSurface.landCoverObj[self.name].cropKC
         self.topWaterLayer = landSurface.landCoverObj[self.name].topWaterLayer
+        self.rootDepth = landSurface.landCoverObj[self.name].rootDepth
 
         if self.numberOfLayers == 2:
             self.adjRootFrUpp = landSurface.landCoverObj[self.name].adjRootFrUpp
@@ -375,6 +373,7 @@ class IrrigationWaterDemand(object):
                 self.storUpp000005 + self.storUpp005030 + self.storLow030150
             )
 
+        self.totAvlWater = self.calculateTotAvlWaterCapacityInRootZone()
         self.readAvlWater = self.get_readily_available_water_within_the_root_zone()
 
         # more variables from landSurface.landCoverObj

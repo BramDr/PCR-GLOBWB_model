@@ -156,6 +156,7 @@ class Meteo(object):
             "air_temperature_max",
             "air_temperature_min",
             "dewpoint_temperature_avg",
+            "vapour_pressure",
         ]
 
         # RvB (13 Jul 2016): conversion constants and factors and variable names for easier use of netCDF
@@ -602,22 +603,24 @@ class Meteo(object):
             logger.info(msg)
 
             # actual vapour pressure (Pa) from relative humidity (rh = e / e_sat)
-            vapourPressure = None
-            if self.relative_humidity is not None:
+            if self.vapour_pressure is None and self.relative_humidity is not None:
                 msg = "Estimating actual vapour pressure based on relative humidity and temperature"
                 logger.info(msg)
                 saturatedVapourPressure = penman_monteith.getSaturatedVapourPressure(
                     self.temperature
                 )
-                vapourPressure = self.relative_humidity * saturatedVapourPressure
+                self.vapour_pressure = self.relative_humidity * saturatedVapourPressure
 
             # actual vapour pressure (Pa) from the dew point temperature
-            if vapourPressure is None and self.dewpoint_temperature_avg is not None:
+            if (
+                self.vapour_pressure is None
+                and self.dewpoint_temperature_avg is not None
+            ):
                 msg = (
                     "Estimating actual vapour pressure based on dew point temperature."
                 )
                 logger.info(msg)
-                vapourPressure = penman_monteith.getSaturatedVapourPressure(
+                self.vapour_pressure = penman_monteith.getSaturatedVapourPressure(
                     self.dewpoint_temperature_avg
                 )
 
@@ -802,7 +805,7 @@ class Meteo(object):
                 # longwave radiation (already in W.m-2)
                 self.longwave_radiation = penman_monteith.getLongWaveRadiation(
                     self.temperature,
-                    vapourPressure,
+                    self.vapour_pressure,
                     fractionShortWaveRadiation,
                     self.relative_humidity,
                 )
@@ -818,7 +821,7 @@ class Meteo(object):
                 airTemperature=self.temperature,
                 windSpeed=self.wind_speed_10m,
                 atmosphericPressure=self.atmospheric_pressure,
-                unsatVapPressure=vapourPressure,
+                unsatVapPressure=self.vapour_pressure,
                 relativeHumidity=self.relative_humidity,
                 timeStepLength=86400,
             )
