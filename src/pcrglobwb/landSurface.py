@@ -6,6 +6,7 @@ import pcraster as pcr
 
 from pcrglobwb import landCover as lc
 from pcrglobwb import parameterSoilAndTopo as parSoilAndTopo
+from pcrglobwb.wofost import WofostAdapter
 from pcrglobwb.common import virtualOS as vos
 from pcrglobwb.ncConverter import PCR2netCDF
 from pcrglobwb.water_demand import main_water_demand as water_demand
@@ -268,6 +269,11 @@ class LandSurface(object):
                 self.soil_topo_parameters[coverType],
                 self.landmask,
             )
+
+        self.wofost = None
+        if any(l.wofost is not None for l in self.landCoverObj.values()):
+            self.wofost = WofostAdapter(iniItems, self)
+            self.wofost.setup()
 
         # rescale the land cover fractions; by default they are always corrected (total of all fractions = 1)
         self.noLandCoverFractionCorrection = False
@@ -1107,6 +1113,10 @@ class LandSurface(object):
         # transfer states between land cover types due to dynamic irrigation areas (expansion/reduction);
         # done at the start of each year, including the first time step
         self.state_transfer_among_land_cover(currTimeStep)
+
+        # Update WOFOST adapter and the related landcover WOFOST adapters
+        if self.wofost is not None:
+            self.wofost.update(meteo)
 
         # total potential evaporation per land cover type, partitioned into bare soil evaporation and
         # transpiration (totalPotET, potBareSoilEvap, potTranspiration)

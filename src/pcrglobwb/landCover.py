@@ -5,6 +5,7 @@ import pcraster as pcr
 
 from pcrglobwb.common import virtualOS as vos
 from pcrglobwb.ncConverter import PCR2netCDF
+from pcrglobwb.wofost import WofostLandCoverAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -38,12 +39,13 @@ class LandCover(object):
         self.iniItemsLC = iniItems.__getattribute__(nameOfSectionInIniFile)
         self.name = self.iniItemsLC["name"]
 
-        self.wofostCropName = None
+        self.wofost = None
         if (
             "wofostCropName" in list(self.iniItemsLC.keys())
             and self.iniItemsLC["wofostCropName"] != "None"
         ):
-            self.wofostCropName = self.iniItemsLC["wofostCropName"]
+            name = self.iniItemsLC["wofostCropName"]
+            self.wofost = WofostLandCoverAdapter(name, self)
 
         self.includeIrrigation = False
         if iniItems.waterDemandOptions["includeIrrigation"] == "True":
@@ -300,7 +302,10 @@ class LandCover(object):
         self.cropCoefficientNC = None
         self.coverFractionNC = None
         self.interceptCapNC = None
-        if self.wofostCropName is None:
+        # Only read crop coefficient, interception capacity, and
+        # cover fraction files if this landcover type does not use WOFOST.
+        # Otherwise, these variables are determinded based on WOFOST's values.
+        if self.wofost is None:
             # crop coefficient files
             if (
                 "cropCoefficientNC" in list(self.iniItemsLC.keys())
@@ -1263,16 +1268,32 @@ class LandCover(object):
 
     def getPotET(self, meteo, currTimeStep):
 
-        # potential ET (m/day)
-        self.totalPotET = pcr.ifthen(self.landmask, self.cropKC * meteo.referencePotET)
+        if self.wofost is None:
+            # potential ET (m/day)
+            self.totalPotET = pcr.ifthen(
+                self.landmask, self.cropKC * meteo.referencePotET
+            )
 
-        # potential bare soil evaporation and transpiration (m/day)
-        self.potBareSoilEvap = pcr.ifthen(
-            self.landmask, self.minCropKC * meteo.referencePotET
-        )
-        self.potTranspiration = pcr.max(
-            0.0, pcr.ifthen(self.landmask, self.totalPotET - self.potBareSoilEvap)
-        )
+            # potential bare soil evaporation and transpiration (m/day)
+            self.potBareSoilEvap = pcr.ifthen(
+                self.landmask, self.minCropKC * meteo.referencePotET
+            )
+            self.potTranspiration = pcr.max(
+                0.0, pcr.ifthen(self.landmask, self.totalPotET - self.potBareSoilEvap)
+            )
+
+        else:
+            assert self.wofost.max_soil_evaporation is not None
+            assert self.wofost.max_transpiration is not None
+
+            # potential ET (m/day)
+            self.totalPotET = (
+                self.wofost.max_transpiration + self.wofost.max_soil_evaporation
+            )
+
+            # potential bare soil evaporation and transpiration (m/day)
+            self.potBareSoilEvap = self.wofost.max_soil_evaporation
+            self.potTranspiration = self.wofost.max_transpiration
 
         if self.debugWaterBalance:
             vos.waterBalanceCheck(
@@ -2050,7 +2071,7 @@ class LandCover(object):
 
         # no reduction when returnTotalEstimation
         relActTranspiration = pcr.scalar(1.0)
-        if not returnTotalEstimation:
+        if self.wofost is None and not returnTotalEstimation:
             # reduction factor for transpiration (actual over potential transpiration)
             # Rens: FRACTA[TYPE] = (WMAX[TYPE]+BCF[TYPE]*WRANGE[TYPE]*(1-(1+BCF[TYPE])/BCF[TYPE]*WFRACB))/(WMAX[TYPE]+BCF[TYPE]*WRANGE[TYPE]*(1-WFRACB))
             relActTranspiration = (
@@ -2074,6 +2095,12 @@ class LandCover(object):
         # Edwin (23 March 2015): no transpiration reduction in irrigated areas
         if self.irrigationType is not None and self.includeIrrigation:
             relActTranspiration = pcr.scalar(1.0)
+
+        if self.wofost is not None and not returnTotalEstimation:
+            assert self.wofost.water_stress is not None
+            relActTranspiration = pcr.cover(
+                self.wofost.water_stress, relActTranspiration
+            )
 
         # partition potential transpiration (based on Rens's oldcalc script of 30 July 2015)
         if self.numberOfLayers == 2:
