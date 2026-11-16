@@ -6,8 +6,8 @@ import pcraster as pcr
 
 from pcrglobwb import landCover as lc
 from pcrglobwb import parameterSoilAndTopo as parSoilAndTopo
-from pcrglobwb.wofost import WofostAdapter
 from pcrglobwb.common import virtualOS as vos
+from pcrglobwb.crops import CropMeteoVars, CropModel
 from pcrglobwb.ncConverter import PCR2netCDF
 from pcrglobwb.water_demand import main_water_demand as water_demand
 from pcrglobwb.water_management import main_water_management as water_management
@@ -270,10 +270,27 @@ class LandSurface(object):
                 self.landmask,
             )
 
-        self.wofost = None
-        if any(l.wofost is not None for l in self.landCoverObj.values()):
-            self.wofost = WofostAdapter(iniItems, self)
-            self.wofost.setup()
+        # crop simulated by WOFOST on this land surface
+        self.wofost: CropModel | None = None
+        self.wofostLandcovers = []
+        if any(c.wofost is not None for c in self.landCoverObj.values()):
+            # imported here, so that runs without crops do not need pymt_wofost
+            from pcrglobwb.wofost import WofostAdapter
+
+            configuration_file = iniItems.landSurfaceOptions[
+                "configuration_file_for_wofost"
+            ]
+            self.wofost = WofostAdapter(configuration_file)
+
+            self.wofostLandcovers = [
+                c for c in self.landCoverObj.values() if c.wofost is not None
+            ]
+
+            for wofostLandcover in self.wofostLandcovers:
+                wofostLandcover.wofost.setup(self.wofost)
+                wofostLandcover.wofost.set_soil_params(
+                    wofostLandcover.get_crop_soil_params()
+                )
 
         # rescale the land cover fractions; by default they are always corrected (total of all fractions = 1)
         self.noLandCoverFractionCorrection = False
@@ -1106,6 +1123,27 @@ class LandSurface(object):
         # rootZoneWaterStorageRange, maxRootDepth, adjRootFrUpp, adjRootFrLow, effSatAt50, effPoreSizeBetaAt50,
         # cropKc, coverFraction and interceptCap
 
+        # run the crop model on the soil states at the end of the previous day; its
+        # outputs are used by set_land_cover_parameters
+        if self.wofost is not None:
+            self.wofost.set_meteo(
+                CropMeteoVars(
+                    precipitation=meteo.precipitation,
+                    minimum_temperature=meteo.air_temperature_min,
+                    maximum_temperature=meteo.air_temperature_max,
+                    wind_speed=meteo.wind_speed_10m,
+                    shortwave_radiation=meteo.shortwave_radiation,
+                    vapour_pressure=meteo.vapour_pressure,
+                )
+            )
+            for wofostLandcover in self.wofostLandcovers:
+                wofostLandcover.wofost.set_soil_vars(
+                    wofostLandcover.get_crop_soil_vars()
+                )
+            self.wofost.update()
+            for wofostLandcover in self.wofostLandcovers:
+                wofostLandcover.wofost.get_outputs()
+
         for coverType in self.coverTypes:
             logger.info("Setting land cover parameters: " + str(coverType))
             self.landCoverObj[coverType].set_land_cover_parameters(currTimeStep)
@@ -1113,10 +1151,6 @@ class LandSurface(object):
         # transfer states between land cover types due to dynamic irrigation areas (expansion/reduction);
         # done at the start of each year, including the first time step
         self.state_transfer_among_land_cover(currTimeStep)
-
-        # Update WOFOST adapter and the related landcover WOFOST adapters
-        if self.wofost is not None:
-            self.wofost.update(meteo)
 
         # total potential evaporation per land cover type, partitioned into bare soil evaporation and
         # transpiration (totalPotET, potBareSoilEvap, potTranspiration)

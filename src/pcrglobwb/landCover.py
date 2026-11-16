@@ -4,13 +4,38 @@ import logging
 import pcraster as pcr
 
 from pcrglobwb.common import virtualOS as vos
+from pcrglobwb.crops import CropLandCoverModel, CropSoilParams, CropSoilVars
 from pcrglobwb.ncConverter import PCR2netCDF
-from pcrglobwb.wofost import WofostLandCoverAdapter
 
 logger = logging.getLogger(__name__)
 
+# name suffixes of the soil layers, top to bottom, per number of layers
+SOIL_LAYERS = {2: ["Upp", "Low"], 3: ["Upp000005", "Upp005030", "Low030150"]}
+
 
 class LandCover(object):
+
+    def get_crop_soil_params(self) -> list[CropSoilParams]:
+        return [
+            CropSoilParams(
+                thickness=getattr(self.parameters, f"thick{layer}"),
+                saturated_moisture=getattr(self.parameters, f"satVolMoistCont{layer}"),
+                residual_moisture=getattr(self.parameters, f"resVolMoistCont{layer}"),
+                effective_saturation_at_field_capacity=getattr(
+                    self.parameters, f"effSatAtFieldCap{layer}"
+                ),
+                effective_saturation_at_wilting_point=getattr(
+                    self.parameters, f"effSatAtWiltPoint{layer}"
+                ),
+            )
+            for layer in SOIL_LAYERS[self.numberOfLayers]
+        ]
+
+    def get_crop_soil_vars(self) -> list[CropSoilVars]:
+        return [
+            CropSoilVars(storage=getattr(self, f"stor{layer}"))
+            for layer in SOIL_LAYERS[self.numberOfLayers]
+        ]
 
     def __init__(
         self,
@@ -39,13 +64,17 @@ class LandCover(object):
         self.iniItemsLC = iniItems.__getattribute__(nameOfSectionInIniFile)
         self.name = self.iniItemsLC["name"]
 
-        self.wofost = None
+        # crop simulated by WOFOST on this land cover type
+        self.wofost: CropLandCoverModel | None = None
         if (
             "wofostCropName" in list(self.iniItemsLC.keys())
             and self.iniItemsLC["wofostCropName"] != "None"
         ):
+            # imported here, so that runs without crops do not need pymt_wofost
+            from pcrglobwb.wofost import WofostLandCoverAdapter
+
             name = self.iniItemsLC["wofostCropName"]
-            self.wofost = WofostLandCoverAdapter(name, self)
+            self.wofost = WofostLandCoverAdapter(name)
 
         self.includeIrrigation = False
         if iniItems.waterDemandOptions["includeIrrigation"] == "True":
@@ -271,8 +300,6 @@ class LandCover(object):
                 ) = self.get_land_cover_parameters()
             # parameters at which transpiration is halved
             self.calculateParametersAtHalfTranspiration()
-            # Register the root depth as the maximum root depth for now, this may be overwritten by WOFOST later
-            self.rootDepth = self.maxRootDepth
 
         # additional land cover parameters (always fixed for the entire simulation)
         landCovParamsAdd = ["minTopWaterLayer", "minCropKC"]
@@ -1027,14 +1054,16 @@ class LandCover(object):
                     self.adjRootFrUpp005030,
                     self.adjRootFrLow030150,
                 ) = self.get_land_cover_parameters(currTimeStep.fulldate)
-            # Register the root depth as the maximum root depth for now, this may be overwritten by WOFOST later
-            self.rootDepth = self.maxRootDepth
 
             # parameters at which transpiration is halved (sets effSatAt50 and effPoreSizeBetaAt50)
             self.calculateParametersAtHalfTranspiration()
 
         # crop coefficient
-        if self.cropCoefficientNC is None:
+        if self.wofost is not None:
+            outputs = self.wofost.outputs
+            assert outputs is not None
+            cropKC = pcr.cover(outputs.crop_coefficient, 0.0)
+        elif self.cropCoefficientNC is None:
             cropKC = pcr.ifthen(self.landmask, pcr.spatial(pcr.scalar(0.0)))
         else:
             cropKC = pcr.cover(
@@ -1053,10 +1082,22 @@ class LandCover(object):
         )
         self.cropKC = pcr.max(cropKC, self.minCropKC)
 
+        if self.wofost is not None:
+            outputs = self.wofost.outputs
+            assert outputs is not None
+            self.rootDepth = pcr.cover(outputs.root_depth, self.maxRootDepth)
+        else:
+            self.rootDepth = self.maxRootDepth * pcr.min(1.0, self.cropKC)
+
         # interception capacity and cover fraction
         interceptCap = pcr.scalar(self.minInterceptCap)
         coverFraction = pcr.scalar(1.0)
-        if self.interceptCapNC is not None and self.coverFractionNC is not None:
+        if self.wofost is not None:
+            outputs = self.wofost.outputs
+            assert outputs is not None
+            coverFraction = pcr.cover(outputs.cover_fraction, 0.0)
+            interceptCap = coverFraction * pcr.cover(outputs.interception_capacity, 0.0)
+        elif self.interceptCapNC is not None and self.coverFractionNC is not None:
             interceptCap = pcr.cover(
                 vos.netcdf2PCRobjClone(
                     self.interceptCapNC,
@@ -1283,17 +1324,28 @@ class LandCover(object):
             )
 
         else:
-            assert self.wofost.max_soil_evaporation is not None
-            assert self.wofost.max_transpiration is not None
+            outputs = self.wofost.outputs
+            assert outputs is not None
 
-            # potential ET (m/day)
-            self.totalPotET = (
-                self.wofost.max_transpiration + self.wofost.max_soil_evaporation
+            # Initialize evapotranspiration to PCR-GLOBWB defaults for bare soil
+            soil_evaporation = pcr.ifthen(
+                self.landmask, self.minCropKC * meteo.referencePotET
             )
+            transpiration = pcr.scalar(0.0)
 
-            # potential bare soil evaporation and transpiration (m/day)
-            self.potBareSoilEvap = self.wofost.max_soil_evaporation
-            self.potTranspiration = self.wofost.max_transpiration
+            # Overwrite evapotranspiration if crops are growing
+            soil_evaporation = pcr.cover(
+                outputs.potential_bare_soil_evaporation, soil_evaporation
+            )
+            transpiration = pcr.cover(outputs.potential_transpiration, transpiration)
+
+            self.potBareSoilEvap = pcr.ifthen(
+                self.landmask, pcr.max(0.0, soil_evaporation)
+            )
+            self.potTranspiration = pcr.ifthen(
+                self.landmask, pcr.max(0.0, transpiration)
+            )
+            self.totalPotET = self.potBareSoilEvap + self.potTranspiration
 
         if self.debugWaterBalance:
             vos.waterBalanceCheck(
@@ -1643,23 +1695,6 @@ class LandCover(object):
             )
             self.gradientUppLow = pcr.cover(self.gradientUppLow, 0.0)
 
-            # readily available water in the root zone (upper soil layers); Edwin uses the soil thicknesses
-            # thickUpp and thickLow instead of storCapUpp and storCapLow (supported by Rens)
-            self.readAvlWater = (
-                pcr.max(0.0, self.effSatUpp - self.parameters.effSatAtWiltPointUpp)
-            ) * (
-                self.parameters.satVolMoistContUpp - self.parameters.resVolMoistContUpp
-            ) * pcr.min(
-                self.parameters.thickUpp, self.rootDepth
-            ) + (
-                pcr.max(0.0, self.effSatLow - self.parameters.effSatAtWiltPointLow)
-            ) * (
-                self.parameters.satVolMoistContLow - self.parameters.resVolMoistContLow
-            ) * pcr.min(
-                self.parameters.thickLow,
-                pcr.max(self.rootDepth - self.parameters.thickUpp, 0.0),
-            )
-
         if self.numberOfLayers == 3:
 
             # initial total soil water storage
@@ -1762,57 +1797,6 @@ class LandCover(object):
                 * (self.matricSuctionUpp005030 - self.matricSuctionLow030150)
                 / (self.parameters.thickUpp005030 + self.parameters.thickLow030150)
                 - 1.0,
-            )
-
-            # readily available water in the root zone (upper soil layers)
-            self.readAvlWater = (
-                (
-                    pcr.max(
-                        0.0,
-                        self.effSatUpp000005
-                        - self.parameters.effSatAtWiltPointUpp000005,
-                    )
-                )
-                * (
-                    self.parameters.satVolMoistContUpp000005
-                    - self.parameters.resVolMoistContUpp000005
-                )
-                * pcr.min(self.parameters.thickUpp000005, self.rootDepth)
-                + (
-                    pcr.max(
-                        0.0,
-                        self.effSatUpp005030
-                        - self.parameters.effSatAtWiltPointUpp005030,
-                    )
-                )
-                * (
-                    self.parameters.satVolMoistContUpp005030
-                    - self.parameters.resVolMoistContUpp005030
-                )
-                * pcr.min(
-                    self.parameters.thickUpp005030,
-                    pcr.max(0.0, self.rootDepth - self.parameters.thickUpp000005),
-                )
-                + (
-                    pcr.max(
-                        0.0,
-                        self.effSatLow030150
-                        - self.parameters.effSatAtWiltPointLow030150,
-                    )
-                )
-                * (
-                    self.parameters.satVolMoistContLow030150
-                    - self.parameters.resVolMoistContLow030150
-                )
-                * pcr.min(
-                    self.parameters.thickLow030150,
-                    pcr.max(
-                        self.rootDepth
-                        - self.parameters.thickUpp000005
-                        - self.parameters.thickUpp005030,
-                        0.0,
-                    ),
-                )
             )
 
         # RvB: initialize satAreaFrac
@@ -2034,9 +2018,7 @@ class LandCover(object):
         # update topWaterLayer after the additional direct runoff
         self.topWaterLayer = pcr.min(self.topWaterLayer, self.minTopWaterLayer)
 
-    def estimateTranspirationAndBareSoilEvap(
-        self, returnTotalEstimation=False, returnTotalTranspirationOnly=False
-    ):
+    def estimateTranspirationAndBareSoilEvap(self):
 
         # transpiration: fractions based on root fractions and actual layer storages
         # Rens: WF1= if((S1_L[TYPE]+S2_L[TYPE])>0,RFW1[TYPE]*S1_L[TYPE]/max(1e-9,RFW1[TYPE]*S1_L[TYPE]+RFW2[TYPE]*S2_L[TYPE]),RFW1[TYPE])
@@ -2069,9 +2051,8 @@ class LandCover(object):
                 self.adjRootFrUpp005030,
             )
 
-        # no reduction when returnTotalEstimation
         relActTranspiration = pcr.scalar(1.0)
-        if self.wofost is None and not returnTotalEstimation:
+        if self.wofost is None:
             # reduction factor for transpiration (actual over potential transpiration)
             # Rens: FRACTA[TYPE] = (WMAX[TYPE]+BCF[TYPE]*WRANGE[TYPE]*(1-(1+BCF[TYPE])/BCF[TYPE]*WFRACB))/(WMAX[TYPE]+BCF[TYPE]*WRANGE[TYPE]*(1-WFRACB))
             relActTranspiration = (
@@ -2096,11 +2077,11 @@ class LandCover(object):
         if self.irrigationType is not None and self.includeIrrigation:
             relActTranspiration = pcr.scalar(1.0)
 
-        if self.wofost is not None and not returnTotalEstimation:
-            assert self.wofost.water_stress is not None
-            relActTranspiration = pcr.cover(
-                self.wofost.water_stress, relActTranspiration
-            )
+        # crop model water stress replaces the reduction above where it grows a crop
+        if self.wofost is not None:
+            outputs = self.wofost.outputs
+            assert outputs is not None
+            relActTranspiration = pcr.cover(outputs.water_stress, 0.0)
 
         # partition potential transpiration (based on Rens's oldcalc script of 30 July 2015)
         if self.numberOfLayers == 2:
@@ -2140,14 +2121,14 @@ class LandCover(object):
                 relActTranspiration * potTranspirationLow030150, 0.0
             )
 
-        # bare soil evaporation (potential); no reduction when returnTotalEstimation
+        # bare soil evaporation (potential)
         actBareSoilEvap = self.potBareSoilEvap
-        if self.numberOfLayers == 2 and not returnTotalEstimation:
+        if self.numberOfLayers == 2:
             # Rens: ES_a[TYPE] = SATFRAC_L*min(ES_p[TYPE],KS1[TYPE]*Duration*timeslice())+(1-SATFRAC_L)*min(ES_p[TYPE],KTHEFF1*Duration*timeslice())
             actBareSoilEvap = self.satAreaFrac * pcr.min(
                 self.potBareSoilEvap, self.parameters.kSatUpp
             ) + (1.0 - self.satAreaFrac) * pcr.min(self.potBareSoilEvap, self.kUnsatUpp)
-        if self.numberOfLayers == 3 and not returnTotalEstimation:
+        if self.numberOfLayers == 3:
             actBareSoilEvap = self.satAreaFrac * pcr.min(
                 self.potBareSoilEvap, self.parameters.kSatUpp000005
             ) + (1.0 - self.satAreaFrac) * pcr.min(
@@ -2166,33 +2147,14 @@ class LandCover(object):
             )
 
         if self.numberOfLayers == 2:
-            if returnTotalEstimation:
-                if returnTotalTranspirationOnly:
-                    return actTranspiUpp + actTranspiLow
-                else:
-                    return actBareSoilEvap + actTranspiUpp + actTranspiLow
-            else:
-                return actBareSoilEvap, actTranspiUpp, actTranspiLow
+            return actBareSoilEvap, actTranspiUpp, actTranspiLow
         if self.numberOfLayers == 3:
-            if returnTotalEstimation:
-                if returnTotalTranspirationOnly:
-                    return (
-                        actTranspiUpp000005 + actTranspiUpp005030 + actTranspiLow030150
-                    )
-                else:
-                    return (
-                        actBareSoilEvap
-                        + actTranspiUpp000005
-                        + actTranspiUpp005030
-                        + actTranspiLow030150
-                    )
-            else:
-                return (
-                    actBareSoilEvap,
-                    actTranspiUpp000005,
-                    actTranspiUpp005030,
-                    actTranspiLow030150,
-                )
+            return (
+                actBareSoilEvap,
+                actTranspiUpp000005,
+                actTranspiUpp005030,
+                actTranspiLow030150,
+            )
 
     def estimateSoilFluxes(self, capRiseFrac, groundwater):
 
