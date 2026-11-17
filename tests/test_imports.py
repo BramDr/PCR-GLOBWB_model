@@ -8,8 +8,11 @@ sys.argv at module level and calling sys.exit()).
 Only Python-level output is checked: compiled third-party code may write to stdout
 directly (importing pcraster.framework prints an empty line from C), which is outside
 our control.
+
+Modules that need an optional package are skipped when that package is not installed.
 """
 
+import importlib.util
 import json
 import pathlib
 import subprocess
@@ -25,6 +28,8 @@ with contextlib.redirect_stdout(captured):
     importlib.import_module(sys.argv[1])
 sys.stderr.write("\\n" + json.dumps({"imported": True, "stdout": captured.getvalue()}))
 """
+# module: optional package it needs (only installed in the wofost pixi environment)
+OPTIONAL_DEPENDENCIES: dict[str, str] = {"pcrglobwb.wofost": "pymt_wofost"}
 
 
 def discover_modules() -> list[str]:
@@ -47,6 +52,9 @@ class TestImports(unittest.TestCase):
     def test_modules_import_cleanly(self) -> None:
         for module in MODULES:
             with self.subTest(module=module):
+                dependency = OPTIONAL_DEPENDENCIES.get(module)
+                if dependency and importlib.util.find_spec(dependency) is None:
+                    self.skipTest(f"{dependency} is not installed")
                 self.assert_imports_cleanly(module)
 
     def assert_imports_cleanly(self, module: str) -> None:

@@ -259,7 +259,7 @@ class IrrigationWaterDemand(object):
 
         return totAvlWater
 
-    def get_readily_available_water_within_the_root_zone(self):
+    def get_available_water_above_wilting_within_the_root_zone(self):
 
         if self.numberOfLayers == 2:
             effSatUpp = vos.getValDivZero(self.storUpp, self.parameters.storCapUpp)
@@ -267,8 +267,8 @@ class IrrigationWaterDemand(object):
             effSatUpp = pcr.min(1.0, effSatUpp)
             effSatLow = pcr.min(1.0, effSatLow)
 
-            # readily available water in the root zone (upper soil layers)
-            readAvlWater = (
+            # available water above the wilting point in the root zone
+            avlWaterAboveWilt = (
                 pcr.max(0.0, effSatUpp - self.parameters.effSatAtWiltPointUpp)
             ) * (
                 self.parameters.satVolMoistContUpp - self.parameters.resVolMoistContUpp
@@ -298,8 +298,8 @@ class IrrigationWaterDemand(object):
             effSatUpp005030 = pcr.min(1.0, effSatUpp005030)
             effSatLow030150 = pcr.min(1.0, effSatLow030150)
 
-            # readily available water in the root zone (upper soil layers)
-            readAvlWater = (
+            # available water above the wilting point in the root zone
+            avlWaterAboveWilt = (
                 (
                     pcr.max(
                         0.0,
@@ -346,7 +346,7 @@ class IrrigationWaterDemand(object):
                 )
             )
 
-        return readAvlWater
+        return avlWaterAboveWilt
 
     def update(self, meteo, landSurface, groundwater, routing, currTimeStep):
 
@@ -361,18 +361,16 @@ class IrrigationWaterDemand(object):
         if self.numberOfLayers == 2:
             self.storUpp = landSurface.landCoverObj[self.name].storUpp
             self.storLow = landSurface.landCoverObj[self.name].storLow
-            self.soilWaterStorage = self.storUpp + self.storLow
 
         if self.numberOfLayers == 3:
             self.storUpp000005 = landSurface.landCoverObj[self.name].storUpp000005
             self.storUpp005030 = landSurface.landCoverObj[self.name].storUpp005030
             self.storLow030150 = landSurface.landCoverObj[self.name].storLow030150
-            self.soilWaterStorage = (
-                self.storUpp000005 + self.storUpp005030 + self.storLow030150
-            )
 
         self.totAvlWater = self.calculateTotAvlWaterCapacityInRootZone()
-        self.readAvlWater = self.get_readily_available_water_within_the_root_zone()
+        self.avlWaterAboveWilt = (
+            self.get_available_water_above_wilting_within_the_root_zone()
+        )
 
         # more variables from landSurface.landCoverObj
         self.netLqWaterToSoil = landSurface.landCoverObj[self.name].netLqWaterToSoil
@@ -412,13 +410,13 @@ class IrrigationWaterDemand(object):
                     ),
                 )
                 irrTrigger = (
-                    self.readAvlWater < (1.0 - adjDeplFactor) * self.totAvlWater
+                    self.avlWaterAboveWilt < (1.0 - adjDeplFactor) * self.totAvlWater
                 )
             else:
                 outputs = self.wofost.outputs
                 assert outputs is not None
                 stressFactor = pcr.cover(outputs.water_stress, 1.0)
-                irrTrigger = (self.readAvlWater < self.totAvlWater) & (
+                irrTrigger = (self.avlWaterAboveWilt < self.totAvlWater) & (
                     stressFactor < 1.0
                 )
 
@@ -428,7 +426,7 @@ class IrrigationWaterDemand(object):
                     irrTrigger,
                     pcr.max(
                         0.0,
-                        self.totAvlWater - self.readAvlWater,
+                        self.totAvlWater - self.avlWaterAboveWilt,
                     ),
                     0.0,
                 ),
@@ -436,7 +434,8 @@ class IrrigationWaterDemand(object):
             )
 
             # limit the demand by the potential evaporation of the coming days, to avoid
-            # unrealistically high demands
+            # unrealistically high demands; only water above the wilting point in the
+            # root zone is available to the crop (as in the FAO-56 water balance)
             max_irrigation_interval = 15.0
             min_irrigation_interval = 7.0
             irrigation_interval = pcr.min(
@@ -446,10 +445,7 @@ class IrrigationWaterDemand(object):
                     pcr.ifthenelse(
                         self.totalPotET > 0.0,
                         pcr.roundup(
-                            (
-                                self.irrGrossDemand
-                                + pcr.max(self.readAvlWater, self.soilWaterStorage)
-                            )
+                            (self.irrGrossDemand + self.avlWaterAboveWilt)
                             / self.totalPotET
                         ),
                         1.0,
@@ -461,8 +457,7 @@ class IrrigationWaterDemand(object):
             self.irrGrossDemand = pcr.min(
                 pcr.max(
                     0.0,
-                    self.totalPotET * irrigation_interval
-                    - pcr.max(self.readAvlWater, self.soilWaterStorage),
+                    self.totalPotET * irrigation_interval - self.avlWaterAboveWilt,
                 ),
                 self.irrGrossDemand,
             )
