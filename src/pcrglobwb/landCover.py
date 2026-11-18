@@ -2323,6 +2323,10 @@ class LandCover(object):
                 0.0,
             )
 
+        # minimize interflow in irrigation areas
+        if self.irrigationType is not None and self.includeIrrigation:
+            self.interflow = pcr.scalar(0.0)
+
     def scaleAllFluxes(self, groundwater):
 
         # rescale all fluxes based on the available water
@@ -2447,43 +2451,6 @@ class LandCover(object):
             self.capRiseUpp000005 = pcr.min(
                 estimateStorUpp005030BeforeCapRise, self.capRiseUpp000005
             )
-
-    def scaleAllFluxesForIrrigatedAreas(self, groundwater):
-
-        # minimize interflow in irrigation areas
-        if self.irrigationType is not None:
-            self.interflow = 0.0
-
-        # idea of 16 June 2015: deep percolation should consider irrigation application losses
-        if self.irrigationType is not None:
-
-            # the starting crop coefficient indicates the growing season
-            startingKC = 0.20
-
-            if self.numberOfLayers == 2:
-                deep_percolation_loss = self.percLow
-                deep_percolation_loss = pcr.max(
-                    deep_percolation_loss,
-                    pcr.max(0.0, self.storLow)
-                    * ((1.0 / self.irrigationEfficiencyUsed) - 1.0),
-                )
-                self.percLow = pcr.ifthenelse(
-                    self.cropKC > startingKC, deep_percolation_loss, self.percLow
-                )
-
-            if self.numberOfLayers == 3:
-                deep_percolation_loss = self.percLow030150
-                deep_percolation_loss = pcr.max(
-                    deep_percolation_loss,
-                    pcr.max(0.0, self.storLow030150)
-                    * ((1.0 / self.irrigationEfficiencyUsed) - 1.0),
-                )
-                self.percLow030150 = pcr.ifthenelse(
-                    self.cropKC > startingKC, deep_percolation_loss, self.percLow030150
-                )
-
-        # scale all fluxes based on the available water (alternative 1)
-        self.scaleAllFluxes(groundwater)
 
     def updateSoilStates(self):
 
@@ -2772,10 +2739,7 @@ class LandCover(object):
         self.estimateSoilFluxes(capRiseFrac, groundwater)
 
         # limit all fluxes to the available (source) storage
-        if self.irrigationType is not None and self.includeIrrigation:
-            self.scaleAllFluxesForIrrigatedAreas(groundwater)
-        else:
-            self.scaleAllFluxes(groundwater)
+        self.scaleAllFluxes(groundwater)
 
         # update all soil states (including the final/corrected fluxes)
         self.updateSoilStates()

@@ -364,11 +364,11 @@ class SoilAndTopoParameters(object):
 
         # default soil parameters that are uniform for the entire domain (dimensionless)
         self.clappAddCoeff = pcr.scalar(3.0)
-        # (m)
-        self.matricSuctionFC = pcr.scalar(1.0)
-        # (m)
-        self.matricSuction50 = pcr.scalar(3.33)
-        # (m)
+        # (m); field capacity at -33 kPa (pF 2.5), as in FAO-56
+        self.matricSuctionFC = pcr.scalar(3.33)
+        # (m); half transpiration at -440 kPa (pF 3.65), approximately in line with a default FAO-56 crop
+        self.matricSuction50 = pcr.scalar(44.85)
+        # (m); wilting point at -1500 kPa (~pF 4.2), as in FAO-56
         self.matricSuctionWP = pcr.scalar(156.0)
         # (m)
         self.maxGWCapRise = pcr.scalar(5.0)
