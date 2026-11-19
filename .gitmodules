@@ -1,0 +1,3 @@
+[submodule "external/wofost"]
+	path = external/wofost
+	url = https://github.com/BramDr/wofost_c_bmi.git
