@@ -168,8 +168,7 @@ class LandCover(object):
                                    self.get_land_cover_parameters()
             # estimate parameters while transpiration is being halved
             self.calculateParametersAtHalfTranspiration()
-            # calculate TAW for estimating irrigation gross demand
-            if self.includeIrrigation: self.calculateTotAvlWaterCapacityInRootZone()
+            # note: TAW for estimating the irrigation gross demand is calculated daily (calculateWaterDemand), as it depends on the root depth
 
         # get additional land cover parameters (ALWAYS fixed for the entire simulation)
         landCovParamsAdd = ['minTopWaterLayer',
@@ -845,7 +844,7 @@ class LandCover(object):
 
     def calculateTotAvlWaterCapacityInRootZone(self):
 
-        # total water capacity in the root zone (upper soil layers)
+        # total available water capacity (between field capacity and wilting point) in the root zone
         # Note: This is dependent on the land cover type.
 
         if self.numberOfLayers == 2: 
@@ -854,12 +853,12 @@ class LandCover(object):
                                (pcr.max(0.,\
                                self.parameters.effSatAtFieldCapUpp - self.parameters.effSatAtWiltPointUpp))*\
                                (self.parameters.satVolMoistContUpp -   self.parameters.resVolMoistContUpp )*\
-                        pcr.min(self.parameters.thickUpp,self.maxRootDepth)  + \
+                        pcr.min(self.parameters.thickUpp,self.rootDepth)  + \
                                (pcr.max(0.,\
                                self.parameters.effSatAtFieldCapLow - self.parameters.effSatAtWiltPointLow))*\
                                (self.parameters.satVolMoistContLow -   self.parameters.resVolMoistContLow )*\
                         pcr.min(self.parameters.thickLow,\
-                        pcr.max(self.maxRootDepth-self.parameters.thickUpp,0.))      # Edwin modified this line. Edwin uses soil thickness thickUpp and thickLow (instead of storCapUpp and storCapLow). 
+                        pcr.max(self.rootDepth-self.parameters.thickUpp,0.))      # Edwin modified this line. Edwin uses soil thickness thickUpp and thickLow (instead of storCapUpp and storCapLow). 
                                                                                      # And Rens support this. 
             self.totAvlWater = pcr.min(self.totAvlWater, \
                             self.parameters.storCapUpp + self.parameters.storCapLow)
@@ -870,17 +869,17 @@ class LandCover(object):
                                (pcr.max(0.,\
                                self.parameters.effSatAtFieldCapUpp000005 - self.parameters.effSatAtWiltPointUpp000005))*\
                                (self.parameters.satVolMoistContUpp000005 -   self.parameters.resVolMoistContUpp000005 )*\
-                        pcr.min(self.parameters.thickUpp000005,self.maxRootDepth)  + \
+                        pcr.min(self.parameters.thickUpp000005,self.rootDepth)  + \
                                (pcr.max(0.,\
                                self.parameters.effSatAtFieldCapUpp005030 - self.parameters.effSatAtWiltPointUpp005030))*\
                                (self.parameters.satVolMoistContUpp005030 -   self.parameters.resVolMoistContUpp005030 )*\
                         pcr.min(self.parameters.thickUpp005030,\
-                        pcr.max(self.maxRootDepth-self.parameters.thickUpp000005))  + \
+                        pcr.max(self.rootDepth-self.parameters.thickUpp000005))  + \
                                (pcr.max(0.,\
                                self.parameters.effSatAtFieldCapLow030150 - self.parameters.effSatAtWiltPointLow030150))*\
                                (self.parameters.satVolMoistContLow030150 -   self.parameters.resVolMoistContLow030150 )*\
                         pcr.min(self.parameters.thickLow030150,\
-                        pcr.max(self.maxRootDepth-self.parameters.thickUpp005030,0.)) 
+                        pcr.max(self.rootDepth-self.parameters.thickUpp005030,0.)) 
             #
             self.totAvlWater = pcr.min(self.totAvlWater, \
                                self.parameters.storCapUpp000005 + \
@@ -951,8 +950,7 @@ class LandCover(object):
                                    self.get_land_cover_parameters(currTimeStep.fulldate)
             # estimate parameters while transpiration is being halved
             self.calculateParametersAtHalfTranspiration()
-            # calculate TAW for estimating irrigation gross demand
-            if self.includeIrrigation: self.calculateTotAvlWaterCapacityInRootZone()
+            # note: TAW for estimating the irrigation gross demand is calculated daily (calculateWaterDemand), as it depends on the root depth
 
         # calculate total PotET (based on meteo and cropKC)
         self.getPotET(meteo,currTimeStep) 
@@ -1111,7 +1109,10 @@ class LandCover(object):
                                             currTimeStep.fulldate, useDoy = 'daily_seasonal',\
                                             cloneMapFileName = self.cloneMap), 0.0)
         self.inputCropKC = cropKC                                               # This line is needed for debugging. (Can we remove this?)
-        self.cropKC = pcr.max(cropKC, self.minCropKC)                                
+        self.cropKC = pcr.max(cropKC, self.minCropKC)
+
+        # root depth (unit: m), with the crop coefficient as a proxy for root development
+        self.rootDepth = self.maxRootDepth * pcr.min(1.0, self.cropKC)
 
         # calculate potential ET (unit: m/day)
         self.totalPotET = pcr.ifthen(self.landmask,\
@@ -1503,17 +1504,17 @@ class LandCover(object):
                                #~ (parameters.satVolWC2 -parameters.resVolWC2) *\
                         #~ pcr.min(parameters.storCapLow,\
                         #~ pcr.max(self.maxRootDepth-self.parameters.storCapUpp,0.)) # DW's code (using storCapUpp and storCapLow). Edwin does not agree with this.  
-            #
-            self.readAvlWater     = \
+            # available water above the wilting point in the root zone
+            self.avlWaterAboveWilt     = \
                                (pcr.max(0.,\
                                                self.effSatUpp - self.parameters.effSatAtWiltPointUpp))*\
                                (self.parameters.satVolMoistContUpp -   self.parameters.resVolMoistContUpp )*\
-                        pcr.min(self.parameters.thickUpp,self.maxRootDepth)  + \
+                        pcr.min(self.parameters.thickUpp,self.rootDepth)  + \
                                (pcr.max(0.,\
                                                self.effSatLow - self.parameters.effSatAtWiltPointLow))*\
                                (self.parameters.satVolMoistContLow - self.parameters.resVolMoistContLow )*\
                         pcr.min(self.parameters.thickLow,\
-                        pcr.max(self.maxRootDepth-self.parameters.thickUpp,0.))      # Edwin modified this line. Edwin uses soil thickness thickUpp & thickLow (instead of storCapUpp & storCapLow). 
+                        pcr.max(self.rootDepth-self.parameters.thickUpp,0.))      # Edwin modified this line. Edwin uses soil thickness thickUpp & thickLow (instead of storCapUpp & storCapLow). 
                                                                                      # And Rens support this. 
 
         if self.numberOfLayers == 3: 
@@ -1571,22 +1572,22 @@ class LandCover(object):
                          (self.matricSuctionUpp005030-self.matricSuctionLow030150)/\
                          (self.parameters.thickUpp005030+  self.parameters.thickLow030150)-1.)
              
-            # readily available water in the root zone (upper soil layers)
-            self.readAvlWater = \
+            # available water above the wilting point in the root zone
+            self.avlWaterAboveWilt = \
                                (pcr.max(0.,\
                                                self.effSatUpp000005 - self.parameters.effSatAtWiltPointUpp000005))*\
                                (self.parameters.satVolMoistContUpp000005 -   self.parameters.resVolMoistContUpp000005 )*\
-                        pcr.min(self.parameters.thickUpp000005,self.maxRootDepth)  + \
+                        pcr.min(self.parameters.thickUpp000005,self.rootDepth)  + \
                                (pcr.max(0.,\
                                                self.effSatUpp005030 - self.parameters.effSatAtWiltPointUpp005030))*\
                                (self.parameters.satVolMoistContUpp005030 -   self.parameters.resVolMoistContUpp005030 )*\
                         pcr.min(self.parameters.thickUpp005030,\
-                        pcr.max(self.maxRootDepth-self.parameters.thickUpp000005))  + \
+                        pcr.max(self.rootDepth-self.parameters.thickUpp000005))  + \
                                (pcr.max(0.,\
                                                self.effSatLow030150 - self.parameters.effSatAtWiltPointLow030150))*\
                                (self.parameters.satVolMoistContLow030150 -   self.parameters.resVolMoistContLow030150 )*\
                         pcr.min(self.parameters.thickLow030150,\
-                        pcr.max(self.maxRootDepth-self.parameters.thickUpp005030,0.))
+                        pcr.max(self.rootDepth-self.parameters.thickUpp005030,0.))
                         
         # RvB: initialize satAreaFrac        
         self.satAreaFrac= None
@@ -1620,54 +1621,30 @@ class LandCover(object):
                      pcr.min(0.8,(self.cropDeplFactor + \
                                   0.04*(5.-self.totalPotET*1000.))))       # original formula based on Allen et al. (1998)
                                                                            # see: http://www.fao.org/docrep/x0490e/x0490e0e.htm#
-            #
-            #~ # alternative 1: irrigation demand (to fill the entire totAvlWater, maintaining the field capacity) - NOT USED
-            #~ self.irrGrossDemand = \
-                 #~ pcr.ifthenelse( self.cropKC > 0.20, \
-                 #~ pcr.ifthenelse( self.readAvlWater < \
-                                  #~ adjDeplFactor*self.totAvlWater, \
-                #~ pcr.max(0.0,  self.totAvlWater-self.readAvlWater),0.),0.)  # a function of cropKC and totalPotET (evaporation and transpiration),
-                                                                           #~ #               readAvlWater (available water in the root zone)
-            
-            # alternative 2: irrigation demand (to fill the entire totAvlWater, maintaining the field capacity, 
-            #                                   but with the correction of totAvlWater based on the rooting depth)
-            # - as the proxy of rooting depth, we use crop coefficient 
-            self.irrigation_factor = pcr.ifthenelse(self.cropKC > 0.0,\
-                                       pcr.min(1.0, self.cropKC / 1.0), 0.0)
-            self.irrGrossDemand = \
-                 pcr.ifthenelse( self.cropKC > 0.20, \
-                 pcr.ifthenelse( self.readAvlWater < \
-                                 adjDeplFactor*self.irrigation_factor*self.totAvlWater, \
-                 pcr.max(0.0, self.totAvlWater*self.irrigation_factor-self.readAvlWater),0.),0.)
+            # total available water (TAW) in the root zone; it depends on the root depth (see getPotET), so it is calculated daily
+            # - the available water above the wilting point within the root zone (avlWaterAboveWilt) is calculated in getSoilStates
+            self.calculateTotAvlWaterCapacityInRootZone()
 
-            # irrigation demand is implemented only if there is deficit in transpiration and/or evaporation
-            deficit_factor = 1.00
-            evaporationDeficit   = pcr.max(0.0, (self.potBareSoilEvap  + self.potTranspiration)*deficit_factor -\
-                                   self.estimateTranspirationAndBareSoilEvap(returnTotalEstimation = True))
-            transpirationDeficit = pcr.max(0.0, 
-                                   self.potTranspiration*deficit_factor -\
-                                   self.estimateTranspirationAndBareSoilEvap(returnTotalEstimation = True, returnTotalTranspirationOnly = True))
-            deficit = pcr.max(evaporationDeficit, transpirationDeficit)
-            #
-            # treshold to initiate irrigation
-            deficit_treshold = 0.20 * self.totalPotET
-            need_irrigation = pcr.ifthenelse(deficit > deficit_treshold, pcr.boolean(1),\
-                              pcr.ifthenelse(self.soilWaterStorage == 0.000, pcr.boolean(1), pcr.boolean(0)))
-            need_irrigation = pcr.cover(need_irrigation, pcr.boolean(0.0))
-            #
-            self.irrGrossDemand = pcr.ifthenelse(need_irrigation, self.irrGrossDemand, 0.0)
+            # irrigation demand following FAO-56 (Allen et al., 1998): irrigate when the root zone depletion exceeds
+            # the readily available water, i.e. avlWaterAboveWilt < (1 - p) * TAW, and refill the root zone to field capacity
+            self.irrGrossDemand = \
+                 pcr.ifthenelse( self.cropKC > self.minCropKC, \
+                 pcr.ifthenelse( self.avlWaterAboveWilt < \
+                                 (1.0 - adjDeplFactor)*self.totAvlWater, \
+                 pcr.max(0.0, self.totAvlWater - self.avlWaterAboveWilt),0.),0.)
 
             # demand is limited by potential evaporation for the next coming days
-            # - objective: to avoid too high and unrealistic demand 
+            # - objective: to avoid too high and unrealistic demand
+            # - only water above the wilting point in the root zone is available to the crop (as in the FAO-56 water balance)
             max_irrigation_interval = 15.0
             min_irrigation_interval =  7.0
             irrigation_interval = pcr.min(max_irrigation_interval, \
                                   pcr.max(min_irrigation_interval, \
                                   pcr.ifthenelse(self.totalPotET > 0.0, \
-                                  pcr.roundup((self.irrGrossDemand + pcr.max(self.readAvlWater, self.soilWaterStorage))/ self.totalPotET), 1.0)))
+                                  pcr.roundup((self.irrGrossDemand + self.avlWaterAboveWilt)/ self.totalPotET), 1.0)))
             # - irrigation demand - limited by potential evaporation for the next coming days
             self.irrGrossDemand = pcr.min(pcr.max(0.0,\
-                                          self.totalPotET * irrigation_interval - pcr.max(self.readAvlWater, self.soilWaterStorage)),\
+                                          self.totalPotET * irrigation_interval - self.avlWaterAboveWilt),\
                                           self.irrGrossDemand)
 
             # assume that smart farmers do not irrigate higher than infiltration capacities
@@ -2556,7 +2533,7 @@ class LandCover(object):
         self.topWaterLayer = pcr.min( self.topWaterLayer , \
                                       self.minTopWaterLayer)
 
-    def estimateTranspirationAndBareSoilEvap(self, returnTotalEstimation = False, returnTotalTranspirationOnly = False):
+    def estimateTranspirationAndBareSoilEvap(self):
 
         # TRANSPIRATION
         #
@@ -2599,22 +2576,20 @@ class LandCover(object):
                                 self.adjRootFrLow030150*self.storLow030150/ dividerTranspFracs, \
                                 self.adjRootFrLow030150)
 
-        relActTranspiration = pcr.scalar(1.0) # no reduction in case of returnTotalEstimation
-        if returnTotalEstimation == False:
-            # reduction factor for transpiration
-            #
-            # - relActTranspiration = fraction actual transpiration over potential transpiration 
-            relActTranspiration = (self.parameters.rootZoneWaterStorageCap  + \
-                       self.arnoBeta*self.rootZoneWaterStorageRange*(1.- \
-                   (1.+self.arnoBeta)/self.arnoBeta*self.WFRACB)) / \
-                                  (self.parameters.rootZoneWaterStorageCap  + \
-                       self.arnoBeta*self.rootZoneWaterStorageRange*(1.- self.WFRACB))   # original Rens's line: 
-                                                                                         # FRACTA[TYPE] = (WMAX[TYPE]+BCF[TYPE]*WRANGE[TYPE]*(1-(1+BCF[TYPE])/BCF[TYPE]*WFRACB))/
-                                                                                         #                (WMAX[TYPE]+BCF[TYPE]*WRANGE[TYPE]*(1-WFRACB));
-            relActTranspiration = (1.-self.satAreaFrac) / \
-              (1.+(pcr.max(0.01,relActTranspiration)/self.effSatAt50)**\
-                                           (self.effPoreSizeBetaAt50*pcr.scalar(-3.0)))  # original Rens's line:
-                                                                                         # FRACTA[TYPE] = (1-SATFRAC_L)/(1+(max(0.01,FRACTA[TYPE])/THEFF_50[TYPE])**(-3*BCH_50));
+        # reduction factor for transpiration
+        #
+        # - relActTranspiration = fraction actual transpiration over potential transpiration
+        relActTranspiration = (self.parameters.rootZoneWaterStorageCap  + \
+                   self.arnoBeta*self.rootZoneWaterStorageRange*(1.- \
+               (1.+self.arnoBeta)/self.arnoBeta*self.WFRACB)) / \
+                              (self.parameters.rootZoneWaterStorageCap  + \
+                   self.arnoBeta*self.rootZoneWaterStorageRange*(1.- self.WFRACB))   # original Rens's line:
+                                                                                     # FRACTA[TYPE] = (WMAX[TYPE]+BCF[TYPE]*WRANGE[TYPE]*(1-(1+BCF[TYPE])/BCF[TYPE]*WFRACB))/
+                                                                                     #                (WMAX[TYPE]+BCF[TYPE]*WRANGE[TYPE]*(1-WFRACB));
+        relActTranspiration = (1.-self.satAreaFrac) / \
+          (1.+(pcr.max(0.01,relActTranspiration)/self.effSatAt50)**\
+                                       (self.effPoreSizeBetaAt50*pcr.scalar(-3.0)))  # original Rens's line:
+                                                                                     # FRACTA[TYPE] = (1-SATFRAC_L)/(1+(max(0.01,FRACTA[TYPE])/THEFF_50[TYPE])**(-3*BCH_50));
         relActTranspiration = pcr.max(0.0, relActTranspiration)
         relActTranspiration = pcr.min(1.0, relActTranspiration)
         
@@ -2660,15 +2635,15 @@ class LandCover(object):
 
         # BARE SOIL EVAPORATION
         #        
-        # actual bare soil evaporation (potential) # no reduction in case of returnTotalEstimation
+        # actual bare soil evaporation (potential)
         actBareSoilEvap = self.potBareSoilEvap
-        if self.numberOfLayers == 2 and returnTotalEstimation == False:
+        if self.numberOfLayers == 2:
             actBareSoilEvap =     self.satAreaFrac * pcr.min(\
                                    self.potBareSoilEvap,self.parameters.kSatUpp) + \
                                   (1.-self.satAreaFrac)* pcr.min(\
                                    self.potBareSoilEvap,self.kUnsatUpp)            # ES_a[TYPE] =  SATFRAC_L *min(ES_p[TYPE],KS1[TYPE]*Duration*timeslice())+
                                                                                    #            (1-SATFRAC_L)*min(ES_p[TYPE],KTHEFF1*Duration*timeslice());
-        if self.numberOfLayers == 3 and returnTotalEstimation == False:
+        if self.numberOfLayers == 3:
             actBareSoilEvap =     self.satAreaFrac * pcr.min(\
                                    self.potBareSoilEvap,self.parameters.kSatUpp000005) + \
                                   (1.-self.satAreaFrac)* pcr.min(\
@@ -2686,21 +2661,9 @@ class LandCover(object):
         
         # return the calculated variables:
         if self.numberOfLayers == 2:
-            if returnTotalEstimation:
-                if returnTotalTranspirationOnly:
-                    return actTranspiUpp+ actTranspiLow
-                else:     
-                    return actBareSoilEvap+ actTranspiUpp+ actTranspiLow
-            else:
-                return actBareSoilEvap, actTranspiUpp, actTranspiLow 
+            return actBareSoilEvap, actTranspiUpp, actTranspiLow
         if self.numberOfLayers == 3:
-            if returnTotalEstimation:
-                if returnTotalTranspirationOnly:
-                    return actTranspiUpp000005+ actTranspiUpp005030+ actTranspiLow030150
-                else:     
-                    return actBareSoilEvap+ actTranspiUpp000005+ actTranspiUpp005030+ actTranspiLow030150
-            else:
-                return actBareSoilEvap, actTranspiUpp000005, actTranspiUpp005030, actTranspiLow030150
+            return actBareSoilEvap, actTranspiUpp000005, actTranspiUpp005030, actTranspiLow030150
 
     def estimateSoilFluxes(self,capRiseFrac,groundwater):
 
