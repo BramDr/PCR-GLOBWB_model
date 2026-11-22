@@ -874,12 +874,12 @@ class LandCover(object):
                                self.parameters.effSatAtFieldCapUpp005030 - self.parameters.effSatAtWiltPointUpp005030))*\
                                (self.parameters.satVolMoistContUpp005030 -   self.parameters.resVolMoistContUpp005030 )*\
                         pcr.min(self.parameters.thickUpp005030,\
-                        pcr.max(self.rootDepth-self.parameters.thickUpp000005))  + \
+                        pcr.max(self.rootDepth-self.parameters.thickUpp000005,0.))  + \
                                (pcr.max(0.,\
                                self.parameters.effSatAtFieldCapLow030150 - self.parameters.effSatAtWiltPointLow030150))*\
                                (self.parameters.satVolMoistContLow030150 -   self.parameters.resVolMoistContLow030150 )*\
                         pcr.min(self.parameters.thickLow030150,\
-                        pcr.max(self.rootDepth-self.parameters.thickUpp005030,0.)) 
+                        pcr.max(self.rootDepth-self.parameters.thickUpp000005-self.parameters.thickUpp005030,0.)) 
             #
             self.totAvlWater = pcr.min(self.totAvlWater, \
                                self.parameters.storCapUpp000005 + \
@@ -1582,12 +1582,12 @@ class LandCover(object):
                                                self.effSatUpp005030 - self.parameters.effSatAtWiltPointUpp005030))*\
                                (self.parameters.satVolMoistContUpp005030 -   self.parameters.resVolMoistContUpp005030 )*\
                         pcr.min(self.parameters.thickUpp005030,\
-                        pcr.max(self.rootDepth-self.parameters.thickUpp000005))  + \
+                        pcr.max(self.rootDepth-self.parameters.thickUpp000005,0.))  + \
                                (pcr.max(0.,\
                                                self.effSatLow030150 - self.parameters.effSatAtWiltPointLow030150))*\
                                (self.parameters.satVolMoistContLow030150 -   self.parameters.resVolMoistContLow030150 )*\
                         pcr.min(self.parameters.thickLow030150,\
-                        pcr.max(self.rootDepth-self.parameters.thickUpp005030,0.))
+                        pcr.max(self.rootDepth-self.parameters.thickUpp000005-self.parameters.thickUpp005030,0.))
                         
         # RvB: initialize satAreaFrac        
         self.satAreaFrac= None
